@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Sketch Chess</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f8f5ec;
+    --paper-2: #fbf9f3;
+    --ink: #1b1a17;
+    --ink-soft: #4a4740;
+    --graphite: #77736b;
+    --red: #c2361f;
+    --blue: #2b56b8;
+    --hl: rgba(255, 214, 51, .55);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Patrick Hand', 'Comic Sans MS', cursive;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+
+  /* paper grain + vignette on top of the 3D view */
+  .grain, .vignette { position: fixed; inset: 0; pointer-events: none; }
+  .vignette { z-index: 4; background: radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(110, 95, 70, .16) 100%); }
+  .grain {
+    z-index: 5; mix-blend-mode: multiply; opacity: .6;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .42  0 0 0 0 .39  0 0 0 0 .33  0 0 0 .2 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* hand-drawn box: wobbly double stroke via pseudo elements */
+  .sketch { position: relative; background: rgba(251, 249, 243, .9); }
+  .sketch::before, .sketch::after {
+    content: ""; position: absolute; pointer-events: none;
+    border: 2px solid var(--ink);
+    border-radius: 255px 14px 225px 14px / 14px 225px 14px 255px;
+    filter: url(#rough);
+  }
+  .sketch::before { inset: 0; }
+  .sketch::after { inset: 3px -2px -2px 2px; opacity: .45; border-width: 1.5px;
+    border-radius: 14px 225px 14px 255px / 255px 14px 225px 14px; }
+
+  .ui { position: fixed; z-index: 10; }
+
+  #card { top: 14px; left: 14px; padding: 10px 18px 12px; min-width: 190px; }
+  #card h1 { font-family: 'Caveat', cursive; font-weight: 700; font-size: 34px; line-height: .95; margin: 0 0 6px; letter-spacing: .5px; }
+  #card h1 span { display: inline-block; transform: rotate(-3deg); }
+  #turn { display: flex; align-items: center; gap: 10px; font-size: 21px; }
+  #turn svg { width: 30px; height: 30px; flex: none; }
+  #moveNo { font-size: 15px; color: var(--ink-soft); margin-top: 2px; }
+
+  #banner {
+    top: 16px; left: 50%; transform: translate(-50%, -12px) rotate(-1.5deg);
+    font-family: 'Caveat', cursive; font-weight: 700; font-size: 46px; line-height: 1;
+    padding: 4px 26px 10px; opacity: 0; transition: opacity .25s, transform .35s cubic-bezier(.3, 1.6, .5, 1);
+    pointer-events: none; text-align: center; white-space: nowrap;
+  }
+  #banner.show { opacity: 1; transform: translate(-50%, 0) rotate(-1.5deg); }
+  #banner.check { color: var(--red); }
+  #banner small { display: block; font-family: 'Patrick Hand', cursive; font-weight: 400; font-size: 18px; color: var(--ink-soft); margin-top: 2px; }
+  #banner svg { position: absolute; left: 10%; bottom: 2px; width: 80%; height: 12px; overflow: visible; }
+  #banner svg path { stroke-dasharray: 400; stroke-dashoffset: 400; }
+  #banner.show svg path { animation: draw .6s .15s ease-out forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  #toolbar {
+    bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    width: max-content; max-width: calc(100vw - 24px);
+  }
+  .btn {
+    font: inherit; font-size: 18px; color: var(--ink); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 13px 8px; border: none; background: rgba(251, 249, 243, .92);
+    transition: transform .12s;
+  }
+  .btn svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; filter: url(#rough-sm); }
+  .btn:hover { transform: rotate(-1.5deg) translateY(-1px);
+    background-image: repeating-linear-gradient(-55deg, rgba(27, 26, 23, .13) 0 1.5px, transparent 1.5px 6px); }
+  .btn:active { transform: rotate(1deg) translateY(1px); }
+  .btn:disabled { opacity: .35; cursor: default; transform: none; background-image: none; }
+  .btn.off { color: var(--graphite); text-decoration: line-through; text-decoration-thickness: 2px; }
+  .btn:focus-visible { outline: 2px dashed var(--blue); outline-offset: 3px; }
+
+  #log { top: 14px; right: 14px; width: 190px; padding: 8px 14px 10px; max-height: calc(100vh - 120px); display: flex; flex-direction: column; }
+  #log header { display: flex; justify-content: space-between; align-items: baseline; cursor: pointer; }
+  #log h2 { font-family: 'Caveat', cursive; font-size: 27px; margin: 0; font-weight: 700; }
+  #log header span { font-size: 15px; color: var(--ink-soft); }
+  #log ol { margin: 4px 0 0; padding: 0 0 0 28px; overflow-y: auto; font-size: 18px; line-height: 1.3; flex: 1;
+    background-image: repeating-linear-gradient(transparent 0 22.4px, rgba(43, 86, 184, .18) 22.4px 23.4px); }
+  #log li { padding-left: 2px; }
+  #log li::marker { color: var(--graphite); font-size: 15px; }
+  #log li b { font-weight: 400; display: inline-block; min-width: 58px; }
+  #log li b.last { background: linear-gradient(transparent 35%, var(--hl) 35% 88%, transparent 88%); }
+  #log .empty { color: var(--graphite); font-size: 16px; padding: 4px 0; list-style: none; margin-left: -28px; }
+  #log.collapsed ol { display: none; }
+
+  #hint { bottom: 76px; left: 50%; transform: translateX(-50%); font-size: 16px; color: var(--ink-soft);
+    pointer-events: none; transition: opacity 1s; text-align: center; width: max-content; max-width: 92vw; }
+  #hint.fade { opacity: 0; }
+
+  .modal { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+    background: rgba(248, 245, 236, .45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .modal.show { opacity: 1; pointer-events: auto; }
+  .modal .sketch { padding: 18px 26px 20px; text-align: center; transform: rotate(-1deg) scale(.92); transition: transform .3s cubic-bezier(.3, 1.6, .5, 1); max-width: calc(100vw - 28px); }
+  .modal.show .sketch { transform: rotate(-1deg) scale(1); }
+  .modal h2 { font-family: 'Caveat', cursive; font-size: 40px; margin: 0 0 4px; line-height: 1; }
+  .modal p { margin: 0 0 14px; font-size: 19px; color: var(--ink-soft); }
+  .choices { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .choice { font: inherit; font-size: 18px; border: none; background: transparent; cursor: pointer; padding: 6px 6px 8px;
+    display: flex; flex-direction: column; align-items: center; color: var(--ink); width: 104px; }
+  .choice img { width: 92px; height: 92px; display: block; }
+  .choice:hover, .choice:focus-visible { outline: none; transform: rotate(-2deg) translateY(-3px);
+    background-image: repeating-linear-gradient(-55deg, rgba(255, 200, 40, .38) 0 3px, transparent 3px 7px); }
+  .modal .row { display: flex; gap: 10px; justify-content: center; margin-top: 4px; flex-wrap: wrap; }
+
+  #loading { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+    background: var(--paper); font-family: 'Caveat', cursive; font-size: 40px; transition: opacity .5s; flex-direction: column; gap: 8px; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #loading svg { width: 120px; height: 30px; }
+  #loading svg path { stroke-dasharray: 260; stroke-dashoffset: 260; animation: draw 1.2s ease-in-out infinite alternate; }
+  #loading small { font-family: 'Patrick Hand', cursive; font-size: 17px; color: var(--ink-soft); max-width: 80vw; text-align: center; }
+
+  @media (max-width: 760px) {
+    #card { padding: 6px 12px 8px; min-width: 0; top: 10px; left: 10px; }
+    #card h1 { font-size: 26px; }
+    #turn { font-size: 18px; }
+    #turn svg { width: 24px; height: 24px; }
+    #banner { top: auto; bottom: 128px; font-size: 36px; }
+    #log { top: 10px; right: 10px; width: 150px; max-height: 45vh; }
+    .btn { font-size: 16px; padding: 7px 10px; }
+    .btn .lbl { display: none; }
+    #hint { bottom: 70px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG filters that make CSS borders and icons wobble like ink -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="4"/></filter>
+  <filter id="rough-sm"><feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="1" seed="9"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter>
+</svg>
+
+<div id="stage"></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<div id="card" class="ui sketch">
+  <h1><span>Sketch</span> Chess</h1>
+  <div id="turn">
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(-50)"><line x1="0" y1="0" x2="0" y2="4" stroke="#1b1a17" stroke-width="2.2"/></pattern></defs>
+      <path id="turnSwatch" d="M16 4.5c6.8-.4 11.6 4.6 11.3 11.4-.3 6.4-5.3 11-11.6 10.7C9.4 26.3 4.6 21.6 4.8 15.3 5 9 9.6 4.9 16 4.5z" fill="#fbf9f3" stroke="#1b1a17" stroke-width="2" filter="url(#rough-sm)"/>
+    </svg>
+    <span id="turnText">White to move</span>
+  </div>
+  <div id="moveNo">Move 1</div>
+</div>
+
+<div id="banner" class="ui sketch" role="status" aria-live="polite">
+  <span id="bannerText"></span><small id="bannerSub"></small>
+  <svg viewBox="0 0 300 12" preserveAspectRatio="none"><path d="M4 7 C 60 2, 120 11, 180 5 S 270 4, 296 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+</div>
+
+<section id="log" class="ui sketch">
+  <header id="logHead" title="Show / hide moves"><h2>Moves</h2><span id="logToggle">hide</span></header>
+  <ol id="logList"></ol>
+</section>
+
+<div id="hint" class="ui">Drag a piece (or click it, then a square) &middot; drag empty space to orbit &middot; right-drag to pan &middot; scroll to zoom</div>
+
+<nav id="toolbar" class="ui">
+  <button class="btn sketch" id="bNew" title="New game"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20.5 3.5v5h-5"/></svg><span class="lbl">New game</span></button>
+  <button class="btn sketch" id="bUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lbl">Undo</span></button>
+  <button class="btn sketch" id="bRedo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg><span class="lbl">Redo</span></button>
+  <button class="btn sketch" id="bFlip" title="Flip board (F)"><svg viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></svg><span class="lbl">Flip</span></button>
+  <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
+  <button class="btn sketch" id="bWiggle" title="Toggle line wiggle"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
+  <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
+</nav>
+
+<div id="promo" class="modal" aria-hidden="true">
+  <div class="sketch">
+    <h2>Promote your pawn</h2>
+    <p>Pick a new piece &middot; <span style="font-size:15px">Esc to cancel</span></p>
+    <div class="choices" id="promoChoices"></div>
+  </div>
+</div>
+
+<div id="over" class="modal" aria-hidden="true">
+  <div class="sketch">
+    <h2 id="overTitle">Checkmate!</h2>
+    <p id="overSub"></p>
+    <div class="row">
+      <button class="btn sketch" id="overNew">New game</button>
+      <button class="btn sketch" id="overLook">Look at the board</button>
+    </div>
+  </div>
+</div>
+
+<div id="loading">
+  <span id="loadText">Sharpening pencils&hellip;</span>
+  <svg viewBox="0 0 120 30"><path d="M4 18 C 20 6, 34 26, 50 14 S 80 6, 96 16 S 112 20, 116 12" fill="none" stroke="#1b1a17" stroke-width="3" stroke-linecap="round"/></svg>
+  <small id="loadErr"></small>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+    "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/esm/chess.js"
+  }
+}
+</script>
+
+<script>
+  // Surface CDN / module failures instead of a silent blank page.
+  window.addEventListener('error', (e) => {
+    const el = document.getElementById('loadErr');
+    if (el && !document.getElementById('loading').classList.contains('done')) {
+      el.textContent = 'Could not load: ' + (e.message || e.filename || 'a script') + ' — check your connection and reload.';
+    }
+  }, true);
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries, mergeVertices, toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { Chess } from 'chess.js';
+
+/* ------------------------------------------------------------------ *
+ *  Constants & small helpers
+ * ------------------------------------------------------------------ */
+const FILES = 'abcdefgh';
+const MARGIN = 0.75;
+const BOARD_W = 8 + MARGIN * 2;
+const BOARD_H = 0.35;
+const TABLE_Y = -BOARD_H;
+const TAU = Math.PI * 2;
+const INK_HEX = '#1b1a17';
+const PAPER_HEX = '#faf7ef';
+const VALUE = { q: 9, r: 5, b: 3, n: 3, p: 1, k: 0 };
+const NAMES = { q: 'Queen', r: 'Rook', b: 'Bishop', n: 'Knight', p: 'Pawn', k: 'King' };
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let rand = mulberry32(7);
+const rj = (a) => (rand() - 0.5) * 2 * a;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ease = (k) => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+
+const sqToXZ = (sq) => ({ x: FILES.indexOf(sq[0]) - 3.5, z: 3.5 - (parseInt(sq[1], 10) - 1) });
+const xzToSq = (x, z) => {
+  const f = Math.floor(x + 4), r = Math.floor(4 - z);
+  return (f < 0 || f > 7 || r < 0 || r > 7) ? null : FILES[f] + (r + 1);
+};
+
+/* ------------------------------------------------------------------ *
+ *  Renderer, scene, camera, controls
+ * ------------------------------------------------------------------ */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+stage.appendChild(renderer.domElement);
+const canvas = renderer.domElement;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.1, 200);
+
+// Shared uniforms (colours are given in display sRGB; ShaderMaterial outputs them untouched)
+const U = {
+  uTime: { value: 0 },
+  uPR: { value: 1 },
+  uRes: { value: new THREE.Vector2(1, 1) },
+  uLight: { value: new THREE.Vector3(-0.55, 1.0, 0.62).normalize() },
+  uInk: { value: new THREE.Vector3(0.106, 0.102, 0.09) },
+  uPaper: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
+};
+
+/* ------------------------------------------------------------------ *
+ *  Shaders: screen-space pencil hatching + jittery inverted-hull ink
+ * ------------------------------------------------------------------ */
+const PIECE_VS = /* glsl */`
+  varying vec3 vN;
+  varying vec3 vW;
+  void main() {
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vW = wp.xyz;
+    vN = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }`;
+
+const PIECE_FS = /* glsl */`
+  uniform vec3 uLight; uniform vec3 uInk; uniform vec3 uPaper;
+  uniform float uDark; uniform float uTime; uniform float uPR;
+  uniform float uGlow; uniform float uSeed; uniform float uOpacity;
+  varying vec3 vN; varying vec3 vW;
+
+  float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+  // one family of wobbly, broken pencil strokes
+  float hatch(vec2 p, float ang, float sp, float wd, float seed) {
+    float c = cos(ang), s = sin(ang);
+    vec2 q = vec2(c * p.x + s * p.y, -s * p.x + c * p.y);
+    q.y += (vnoise(vec2(q.x * 0.012, seed * 7.0)) - 0.5) * sp * 1.4;
+    float row = floor(q.y / sp);
+    float d = abs(fract(q.y / sp) - 0.5) * sp;
+    float len = vnoise(vec2(q.x * 0.02 + row * 13.7, row * 1.91 + seed));
+    float w = wd * (0.55 + 0.9 * vnoise(vec2(q.x * 0.05, row * 3.3 + seed)));
+    float a = 1.0 - smoothstep(w * 0.5, w * 0.5 + 0.9, d);
+    return a * smoothstep(0.16, 0.3, len);
+  }
+  void main() {
+    vec3 N = normalize(vN);
+    if (!gl_FrontFacing) N = -N;
+    vec3 V = normalize(cameraPosition - vW);
+    vec3 L = normalize(uLight);
+    float lam = dot(N, L) * 0.5 + 0.5;
+    float rim = 1.0 - clamp(dot(N, V), 0.0, 1.0);
+    float spec = pow(max(dot(reflect(-L, N), V), 0.0), 18.0);
+
+    float tone = uDark > 0.5 ? lam * 0.5 + 0.03 : lam * 1.08 + 0.1 - rim * rim * 0.38;
+
+    float st = floor(uTime * 5.0);
+    vec2 p = gl_FragCoord.xy / uPR + vec2(hash(vec2(st, uSeed)), hash(vec2(uSeed, st))) * 5.0;
+
+    float ink = 0.0;
+    ink = max(ink, hatch(p, 0.85, 5.5, 1.15, uSeed + 1.0) * (1.0 - smoothstep(0.6, 0.78, tone)));
+    ink = max(ink, hatch(p, -0.55, 4.6, 1.15, uSeed + 2.0) * (1.0 - smoothstep(0.4, 0.54, tone)));
+    ink = max(ink, hatch(p, 2.3, 3.9, 1.25, uSeed + 3.0) * (1.0 - smoothstep(0.24, 0.36, tone)));
+    ink = max(ink, hatch(p, 0.12, 3.2, 1.35, uSeed + 4.0) * (1.0 - smoothstep(0.08, 0.2, tone)));
+    // dark pieces keep a paper-white glint where the light skims them
+    ink *= 1.0 - uDark * smoothstep(0.25, 0.7, spec) * 0.95;
+
+    vec3 base = uPaper;
+    if (uDark > 0.5) base = mix(uPaper, vec3(0.45, 0.44, 0.41), (0.8 - lam * 0.4) * (1.0 - smoothstep(0.3, 0.8, spec)));
+    base -= vnoise(gl_FragCoord.xy / uPR * 0.6) * 0.05;
+
+    vec3 col = mix(base, uInk, ink * 0.92);
+    // highlighter wash when selected
+    col = mix(col, col * vec3(1.0, 0.88, 0.38), uGlow * 0.65 * (1.0 - ink * 0.7));
+    gl_FragColor = vec4(col, uOpacity);
+  }`;
+
+const OUTLINE_VS = /* glsl */`
+  uniform vec2 uRes; uniform float uWidth; uniform float uTime; uniform float uSeed; uniform vec2 uOffset;
+  float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float n3(vec3 x) {
+    vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z);
+  }
+  void main() {
+    vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec3 vn = normalize(normalMatrix * normal);
+    vec2 d = (projectionMatrix * vec4(vn, 0.0)).xy * uRes;
+    float l = length(d); d = l > 1e-6 ? d / l : vec2(0.0);
+    float st = floor(uTime * 5.0);
+    float j = n3(position * 7.0 + vec3(st * 3.17 + uSeed));
+    float w = uWidth * (0.3 + 1.4 * j * j);
+    vec2 off = d * w + uOffset * (0.4 + j);
+    clip.xy += off * 2.0 / uRes * clip.w;
+    gl_Position = clip;
+  }`;
+const OUTLINE_FS = /* glsl */`
+  uniform vec3 uInk; uniform float uOpacity;
+  void main() { gl_FragColor = vec4(uInk, uOpacity); }`;
+
+const outlineA = new THREE.ShaderMaterial({
+  uniforms: { uRes: U.uRes, uTime: U.uTime, uInk: U.uInk, uWidth: { value: 2 }, uSeed: { value: 0 }, uOffset: { value: new THREE.Vector2() }, uOpacity: { value: 1 } },
+  vertexShader: OUTLINE_VS, fragmentShader: OUTLINE_FS, side: THREE.BackSide,
+});
+const outlineB = new THREE.ShaderMaterial({
+  uniforms: { uRes: U.uRes, uTime: U.uTime, uInk: U.uInk, uWidth: { value: 1 }, uSeed: { value: 11.3 }, uOffset: { value: new THREE.Vector2(1.2, -1) }, uOpacity: { value: 1 } },
+  vertexShader: OUTLINE_VS, fragmentShader: OUTLINE_FS, side: THREE.BackSide,
+});
+const pieceEdgeMat = new LineMaterial({ color: 0x1b1a17, linewidth: 1.1, transparent: true, opacity: 0.8 });
+const boardLineMatA = new LineMaterial({ color: 0x1b1a17, linewidth: 2.3 });
+const boardLineMatB = new LineMaterial({ color: 0x1b1a17, linewidth: 1.1, transparent: true, opacity: 0.7 });
+const lineMats = [pieceEdgeMat, boardLineMatA, boardLineMatB];
+const inkMat = new THREE.MeshBasicMaterial({ color: 0x1b1a17 });
+
+function pieceMaterial(color, seed) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: U.uTime, uPR: U.uPR, uLight: U.uLight, uInk: U.uInk, uPaper: U.uPaper,
+      uDark: { value: color === 'b' ? 1 : 0 }, uGlow: { value: 0 }, uSeed: { value: seed }, uOpacity: { value: 1 },
+    },
+    vertexShader: PIECE_VS, fragmentShader: PIECE_FS,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ *  Piece geometry: lathe profiles + extras, lumpy, hand-made
+ * ------------------------------------------------------------------ */
+const V2 = (r, y) => new THREE.Vector2(r, y);
+function arc(cy, rad, a0, a1, n) {
+  const out = [];
+  for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n; out.push(V2(Math.max(0, rad * Math.cos(a)), cy + rad * Math.sin(a))); }
+  return out;
+}
+const foot = (R) => [V2(0, 0), V2(R, 0), V2(R + 0.005, 0.055), V2(R - 0.035, 0.085), V2(R - 0.035, 0.12), V2(R - 0.09, 0.15)];
+
+const PROFILES = {
+  p: [...foot(0.33), V2(0.19, 0.2), V2(0.14, 0.3), V2(0.115, 0.4), V2(0.19, 0.43), V2(0.19, 0.47), V2(0.1, 0.5), ...arc(0.63, 0.15, -0.75, Math.PI / 2, 12)],
+  r: [...foot(0.37), V2(0.25, 0.2), V2(0.215, 0.3), V2(0.205, 0.54), V2(0.26, 0.58), V2(0.285, 0.6), V2(0.285, 0.625), V2(0.255, 0.645), V2(0.255, 0.79), V2(0.17, 0.79), V2(0.17, 0.73), V2(0, 0.73)],
+  n: [...foot(0.35), V2(0.25, 0.19), V2(0.2, 0.22), V2(0, 0.22)],
+  b: [...foot(0.34), V2(0.2, 0.2), V2(0.145, 0.32), V2(0.122, 0.47), V2(0.118, 0.57), V2(0.205, 0.6), V2(0.205, 0.645), V2(0.12, 0.675), V2(0.13, 0.71), V2(0.165, 0.78), V2(0.172, 0.84), V2(0.152, 0.9), V2(0.11, 0.96), V2(0.06, 0.995), V2(0, 1.005)],
+  q: [...foot(0.37), V2(0.22, 0.22), V2(0.155, 0.36), V2(0.128, 0.55), V2(0.122, 0.68), V2(0.215, 0.71), V2(0.215, 0.75), V2(0.13, 0.78), V2(0.14, 0.82), V2(0.195, 0.93), V2(0.235, 1.0), V2(0.215, 1.02), V2(0.13, 1.0), V2(0.1, 1.04), V2(0.06, 1.07), V2(0, 1.08)],
+  k: [...foot(0.38), V2(0.23, 0.22), V2(0.165, 0.38), V2(0.138, 0.6), V2(0.132, 0.74), V2(0.225, 0.77), V2(0.225, 0.81), V2(0.14, 0.84), V2(0.15, 0.88), V2(0.2, 1.0), V2(0.212, 1.06), V2(0.17, 1.08), V2(0.12, 1.1), V2(0.1, 1.14), V2(0, 1.15)],
+};
+
+const KNIGHT_SHAPE = [[-0.22, 0.17], [0.24, 0.17], [0.22, 0.3], [0.12, 0.42], [0.13, 0.47], [0.25, 0.5], [0.34, 0.53], [0.37, 0.6],
+  [0.33, 0.67], [0.2, 0.76], [0.16, 0.84], [0.145, 0.94], [0.07, 0.875], [0.0, 0.905], [-0.05, 0.865], [-0.15, 0.79], [-0.23, 0.62], [-0.26, 0.42], [-0.24, 0.26]];
+
+const nz = (x, y, z) => Math.sin(x * 1.7 + y * 3.1 + z * 2.3) * 0.5 + Math.sin(x * 4.3 - y * 2.9 + z * 5.7) * 0.3 + Math.sin(-x * 7.9 + y * 6.1 + z * 3.7) * 0.2;
+
+function buildPieceGeometry(type, seed) {
+  const R = mulberry32(seed);
+  const jr = (a) => (R() - 0.5) * 2 * a;
+  const parts = [];
+  const extras = [];
+  const prof = PROFILES[type].map((p) => V2(p.x > 0 ? p.x + jr(0.007) : 0, p.y));
+  parts.push(new THREE.LatheGeometry(prof, 32));
+
+  if (type === 'p') {
+    // nothing extra — the humble pawn
+  } else if (type === 'r') {
+    for (let i = 0; i < 6; i++) {
+      const b = new THREE.BoxGeometry(0.085, 0.12 + jr(0.015), 0.11);
+      b.translate(0.212, 0.84, 0); b.rotateY(i / 6 * TAU + 0.26 + jr(0.05));
+      parts.push(b);
+    }
+  } else if (type === 'n') {
+    const sh = new THREE.Shape();
+    KNIGHT_SHAPE.forEach(([x, y], i) => (i ? sh.lineTo(x + jr(0.008), y + jr(0.008)) : sh.moveTo(x, y)));
+    sh.closePath();
+    const ex = new THREE.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.035, bevelSegments: 2, curveSegments: 4 });
+    ex.translate(0, 0, -0.08);
+    parts.push(ex);
+    for (const s of [-1, 1]) {
+      const eye = new THREE.SphereGeometry(0.027, 8, 6); eye.translate(0.21, 0.705, s * 0.128); extras.push(eye);
+      const nostril = new THREE.SphereGeometry(0.016, 6, 4); nostril.translate(0.345, 0.575, s * 0.1); extras.push(nostril);
+    }
+    // mane strokes
+    for (let i = 0; i < 5; i++) {
+      const m = new THREE.BoxGeometry(0.11, 0.016, 0.3);
+      m.rotateZ(0.6 + i * 0.12); m.translate(-0.12 - i * 0.025, 0.82 - i * 0.1, 0); extras.push(m);
+    }
+  } else if (type === 'b') {
+    const ball = new THREE.SphereGeometry(0.055, 12, 8); ball.translate(0, 1.055, 0); parts.push(ball);
+    const slit = new THREE.BoxGeometry(0.14, 0.026, 0.33); slit.rotateZ(0.75); slit.translate(0.025, 0.86, 0); extras.push(slit);
+  } else if (type === 'q') {
+    for (let i = 0; i < 9; i++) {
+      const s = new THREE.SphereGeometry(0.036, 10, 7);
+      const a = i / 9 * TAU;
+      s.translate(Math.cos(a) * 0.222, 1.035 + jr(0.01), Math.sin(a) * 0.222); parts.push(s);
+    }
+    const top = new THREE.SphereGeometry(0.062, 12, 8); top.translate(0, 1.12, 0); parts.push(top);
+  } else if (type === 'k') {
+    const v = new THREE.BoxGeometry(0.065, 0.25, 0.065); v.translate(0, 1.26, 0); parts.push(v);
+    const h = new THREE.BoxGeometry(0.19, 0.065, 0.065); h.translate(0, 1.3, 0); parts.push(h);
+  }
+
+  const prep = (g) => { g.deleteAttribute('uv'); g.deleteAttribute('normal'); return g.index ? g.toNonIndexed() : g; };
+  const g = mergeGeometries(parts.map(prep));
+
+  // hand-modelled lumps: displacement that is a pure function of position (so seams never crack)
+  const pos = g.attributes.position, s = seed * 0.137, A = 0.011;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    pos.setXYZ(i,
+      x + A * nz(x * 6 + s, y * 6, z * 6),
+      y + A * 0.5 * nz(y * 6 + s, z * 6, x * 6) * Math.min(1, y * 8),
+      z + A * nz(z * 6 + s, x * 6, y * 6));
+  }
+
+  const shade = toCreasedNormals(g, 0.6);
+  shade.computeBoundingSphere();
+
+  const og = new THREE.BufferGeometry();
+  og.setAttribute('position', g.attributes.position.clone());
+  const outline = mergeVertices(og, 1e-4);
+  outline.computeVertexNormals();
+
+  const edges = new LineSegmentsGeometry().fromEdgesGeometry(new THREE.EdgesGeometry(g, 32));
+  const extra = extras.length ? mergeGeometries(extras.map(prep)) : null;
+  if (extra) extra.computeVertexNormals();
+  return { shade, outline, edges, extra };
+}
+
+const geoCache = new Map();
+function getGeo(type, color) {
+  const key = type + color;
+  if (!geoCache.has(key)) geoCache.set(key, buildPieceGeometry(type, 'pnbrqk'.indexOf(type) * 31 + (color === 'w' ? 3 : 17)));
+  return geoCache.get(key);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Canvas-drawn textures (board, markers, shadows)
+ * ------------------------------------------------------------------ */
+function makeCanvas(w, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+function toTex(c) {
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+function roughLine(ctx, x1, y1, x2, y2, w, jit, color, passes = 2) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  ctx.strokeStyle = color; ctx.lineCap = 'round';
+  for (let p = 0; p < passes; p++) {
+    const o1 = rand() * jit * 2.5, o2 = rand() * jit * 2.5;
+    ctx.lineWidth = p ? w * 0.55 : w;
+    ctx.beginPath();
+    ctx.moveTo(x1 - ux * o1 + rj(jit), y1 - uy * o1 + rj(jit));
+    ctx.quadraticCurveTo((x1 + x2) / 2 + rj(jit * 1.6), (y1 + y2) / 2 + rj(jit * 1.6), x2 + ux * o2 + rj(jit), y2 + uy * o2 + rj(jit));
+    ctx.stroke();
+  }
+}
+function roughRect(ctx, x, y, w, h, lw, jit, color, passes = 2) {
+  roughLine(ctx, x, y, x + w, y, lw, jit, color, passes);
+  roughLine(ctx, x + w, y, x + w, y + h, lw, jit, color, passes);
+  roughLine(ctx, x + w, y + h, x, y + h, lw, jit, color, passes);
+  roughLine(ctx, x, y + h, x, y, lw, jit, color, passes);
+}
+function roughCircle(ctx, cx, cy, r, loops, w, color, wob = 0.07) {
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const start = rand() * TAU, total = TAU * loops + rand() * 0.7, steps = Math.ceil(56 * loops), ph = rand() * TAU, drift = rj(r * 0.12);
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const k = i / steps, a = start + total * k;
+    const rr = r * (1 + wob * Math.sin(a * 2 + ph)) + drift * k;
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.96;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.stroke();
+}
+
+// dense, slanted zig-zag scribble that fills a dark square
+function scribbleFill(ctx, x, y, s, strength = 1) {
+  ctx.save();
+  const j = s * 0.035;
+  ctx.beginPath();
+  ctx.moveTo(x + rj(j), y + rj(j)); ctx.lineTo(x + s + rj(j), y + rj(j));
+  ctx.lineTo(x + s + rj(j), y + s + rj(j)); ctx.lineTo(x + rj(j), y + s + rj(j)); ctx.closePath();
+  ctx.clip();
+  ctx.translate(x + s / 2, y + s / 2);
+  ctx.rotate(-1.02 + rj(0.09));
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const L = s * 0.78;
+  const pass = (gap, lw, alpha) => {
+    ctx.strokeStyle = `rgba(27,26,23,${alpha})`; ctx.lineWidth = lw;
+    ctx.beginPath();
+    let side = -1, py = -L;
+    ctx.moveTo(-L, py);
+    for (let t = -L; t <= L + gap; t += gap * (0.7 + rand() * 0.6)) {
+      side *= -1;
+      const ex = side * L * (0.88 + rand() * 0.25), ey = t + rj(gap * 0.45);
+      ctx.quadraticCurveTo(rj(s * 0.1), (py + ey) / 2 + rj(gap * 0.8), ex, ey);
+      py = ey;
+    }
+    ctx.stroke();
+  };
+  pass(s * 0.05, s * 0.019, 0.85 * strength);
+  ctx.rotate(0.28 + rj(0.08));
+  pass(s * 0.11, s * 0.01, 0.5 * strength);
+  ctx.restore();
+}
+
+function drawBoardTexture(seed) {
+  rand = mulberry32(seed);
+  const S = 2048, ppu = S / BOARD_W, o = MARGIN * ppu;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  ctx.fillStyle = PAPER_HEX; ctx.fillRect(0, 0, S, S);
+  // paper fibres
+  for (let i = 0; i < 260; i++) {
+    const x = rand() * S, y = rand() * S, a = rand() * TAU, l = 6 + rand() * 18;
+    ctx.strokeStyle = `rgba(120,110,90,${0.05 + rand() * 0.06})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
+  }
+  for (let f = 0; f < 8; f++) for (let r = 0; r < 8; r++) {
+    const x0 = o + f * ppu, y0 = o + (7 - r) * ppu;
+    if ((f + r) % 2 === 0) scribbleFill(ctx, x0, y0, ppu);
+    else if (rand() < 0.3) { // light squares: barely touched
+      for (let k = 0, n = 1 + (rand() * 3 | 0); k < n; k++) {
+        const sx = x0 + ppu * (0.15 + rand() * 0.6), sy = y0 + ppu * (0.2 + rand() * 0.6);
+        roughLine(ctx, sx, sy, sx + ppu * 0.12, sy - ppu * 0.2, 1.5, 2, 'rgba(27,26,23,0.18)', 1);
+      }
+    }
+  }
+  // faint construction grid, then the board frames
+  for (let i = 0; i <= 8; i++) {
+    roughLine(ctx, o + i * ppu, o, o + i * ppu, o + 8 * ppu, 1.4, 3, 'rgba(27,26,23,0.16)', 1);
+    roughLine(ctx, o, o + i * ppu, o + 8 * ppu, o + i * ppu, 1.4, 3, 'rgba(27,26,23,0.16)', 1);
+  }
+  roughRect(ctx, o - 4, o - 4, 8 * ppu + 8, 8 * ppu + 8, 5, 4, 'rgba(27,26,23,0.9)');
+  roughRect(ctx, 14, 14, S - 28, S - 28, 4, 4, 'rgba(27,26,23,0.75)');
+  // handwritten coordinates
+  const fs = Math.round(ppu * 0.44);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const label = (txt, x, y, rot, alpha, size = fs) => {
+    ctx.save(); ctx.translate(x + rj(2), y + rj(2)); ctx.rotate(rot + rj(0.08));
+    ctx.font = `700 ${size}px Caveat, 'Patrick Hand', cursive`;
+    ctx.fillStyle = `rgba(27,26,23,${alpha})`; ctx.fillText(txt, 0, 0); ctx.restore();
+  };
+  for (let i = 0; i < 8; i++) {
+    const cx = o + (i + 0.5) * ppu, cy = o + (7 - i + 0.5) * ppu;
+    label(FILES[i], cx, o + 8 * ppu + o * 0.5, 0, 0.92);
+    label(FILES[i], cx, o * 0.5, Math.PI, 0.5, fs * 0.85);
+    label(String(i + 1), o * 0.5, cy, 0, 0.92);
+    label(String(i + 1), o + 8 * ppu + o * 0.5, cy, Math.PI, 0.5, fs * 0.85);
+  }
+  return toTex(c);
+}
+
+function drawSideTexture(seed, density) {
+  rand = mulberry32(seed);
+  const c = makeCanvas(1024, 64), ctx = c.getContext('2d');
+  ctx.fillStyle = PAPER_HEX; ctx.fillRect(0, 0, 1024, 64);
+  ctx.lineCap = 'round';
+  const gap = 18 / density;
+  for (let x = -40; x < 1064; x += gap * (0.7 + rand() * 0.6)) {
+    ctx.strokeStyle = `rgba(27,26,23,${0.45 + rand() * 0.35})`; ctx.lineWidth = 1.6 + rand() * 1.2;
+    ctx.beginPath(); ctx.moveTo(x + rj(3), -4); ctx.lineTo(x + 22 + rj(5), 68); ctx.stroke();
+  }
+  if (density > 1.5) for (let x = -40; x < 1064; x += gap * 1.6) {
+    ctx.strokeStyle = 'rgba(27,26,23,0.35)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(x, 68); ctx.lineTo(x + 30 + rj(5), -4); ctx.stroke();
+  }
+  return toTex(c);
+}
+
+// soft, hatched shadow blob (ellipse or rounded rectangle)
+function drawShadowTexture(seed, rect = false) {
+  rand = mulberry32(seed);
+  const S = rect ? 512 : 256;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  ctx.lineCap = 'round';
+  ctx.save(); ctx.translate(S / 2, S / 2); ctx.rotate(-0.95);
+  for (let t = -S; t < S; t += S / 52 * (0.7 + rand() * 0.6)) {
+    ctx.strokeStyle = `rgba(27,26,23,${0.55 + rand() * 0.4})`; ctx.lineWidth = S / 120 * (0.8 + rand() * 0.7);
+    ctx.beginPath(); ctx.moveTo(-S, t + rj(2)); ctx.quadraticCurveTo(0, t + rj(S * 0.02), S, t + rj(2)); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalCompositeOperation = 'destination-in';
+  if (rect) {
+    for (let k = 0; k < 24; k++) { ctx.fillStyle = 'rgba(0,0,0,0.085)'; const i = 18 + k * 4.5; ctx.fillRect(i, i, S - i * 2, S - i * 2); }
+  } else {
+    const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.55, 'rgba(0,0,0,0.8)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  }
+  return toTex(c);
+}
+
+// marker sprites — paper halo underneath so they read on top of scribbles
+const MARKER_KINDS = {
+  dot(ctx, S) {
+    const c = S / 2;
+    roughCircle(ctx, c, c, S * 0.13, 1.2, S * 0.09, 'rgba(250,247,239,0.95)', 0.1);
+    ctx.lineWidth = S * 0.028; ctx.strokeStyle = 'rgba(43,86,184,0.9)'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let a = rand() * TAU; ctx.moveTo(c, c);
+    for (let i = 0; i < 26; i++) { a += 2.2 + rand() * 0.8; const r = S * 0.1 * Math.sqrt(rand() * 0.6 + 0.4); ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r); }
+    ctx.stroke();
+    roughCircle(ctx, c, c, S * 0.12, 1.15, S * 0.022, 'rgba(43,86,184,0.95)', 0.08);
+  },
+  cap(ctx, S) {
+    const c = S / 2;
+    roughCircle(ctx, c, c, S * 0.4, 1.1, S * 0.08, 'rgba(250,247,239,0.85)', 0.05);
+    roughCircle(ctx, c, c, S * 0.4, 1.35, S * 0.028, 'rgba(194,54,31,0.95)', 0.05);
+    roughCircle(ctx, c, c, S * 0.36, 0.9, S * 0.016, 'rgba(194,54,31,0.75)', 0.07);
+  },
+  sel(ctx, S) {
+    const i = S * 0.08, w = S - i * 2;
+    roughRect(ctx, i, i, w, w, S * 0.075, S * 0.012, 'rgba(250,247,239,0.85)', 1);
+    roughRect(ctx, i, i, w, w, S * 0.03, S * 0.015, 'rgba(43,86,184,0.95)');
+  },
+  hover(ctx, S) {
+    const i = S * 0.1, w = S - i * 2;
+    ctx.save(); ctx.beginPath(); ctx.rect(i, i, w, w); ctx.clip();
+    for (let t = -S; t < S * 2; t += S * 0.07) roughLine(ctx, t, S, t + S * 0.6, 0, S * 0.02, S * 0.01, 'rgba(43,86,184,0.5)', 1);
+    ctx.restore();
+    roughRect(ctx, i, i, w, w, S * 0.03, S * 0.015, 'rgba(43,86,184,0.95)');
+  },
+  last(ctx, S) {
+    ctx.globalCompositeOperation = 'source-over';
+    for (let k = 0; k < 3; k++) {
+      const y = S * (0.22 + k * 0.28) + rj(S * 0.03);
+      roughLine(ctx, S * 0.06, y + S * 0.06, S * 0.94, y - S * 0.06, S * 0.26, S * 0.02, 'rgba(255,208,40,0.42)', 1);
+    }
+  },
+  check(ctx, S) {
+    const c = S / 2;
+    roughCircle(ctx, c, c, S * 0.42, 1.2, S * 0.09, 'rgba(250,247,239,0.8)', 0.05);
+    roughCircle(ctx, c, c, S * 0.42, 2.2, S * 0.03, 'rgba(194,54,31,0.95)', 0.06);
+    ctx.save(); ctx.beginPath(); ctx.arc(c, c, S * 0.38, 0, TAU); ctx.clip();
+    for (let t = -S; t < S * 2; t += S * 0.06) roughLine(ctx, t, S, t + S * 0.5, 0, S * 0.012, S * 0.01, 'rgba(194,54,31,0.45)', 1);
+    ctx.restore();
+  },
+  puff(ctx, S) {
+    const c = S / 2;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 14; i++) {
+      const a = i / 14 * TAU + rj(0.15), r0 = S * (0.3 + rand() * 0.04), r1 = S * (0.4 + rand() * 0.07);
+      ctx.strokeStyle = 'rgba(27,26,23,0.85)'; ctx.lineWidth = S * (0.012 + rand() * 0.01);
+      ctx.beginPath(); ctx.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); ctx.lineTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1); ctx.stroke();
+    }
+  },
+};
+const VARIANTS = 3;
+const markerTex = {};
+const boardTex = [];
+let shadowTex, boardShadowTex;
+
+function buildTextures() {
+  let seed = 100;
+  for (const [k, fn] of Object.entries(MARKER_KINDS)) {
+    markerTex[k] = [];
+    for (let v = 0; v < VARIANTS; v++) {
+      rand = mulberry32(seed++);
+      const S = 256, c = makeCanvas(S), ctx = c.getContext('2d');
+      fn(ctx, S); markerTex[k].push(toTex(c));
+    }
+  }
+  for (let v = 0; v < VARIANTS; v++) boardTex.push(drawBoardTexture(900 + v * 13));
+  shadowTex = drawShadowTexture(55);
+  boardShadowTex = drawShadowTexture(56, true);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Board
+ * ------------------------------------------------------------------ */
+let boardTop, boardLines = [];
+function buildBoard() {
+  const sideLight = drawSideTexture(1, 1), sideDark = drawSideTexture(2, 2.2), paper = new THREE.MeshBasicMaterial({ color: PAPER_HEX });
+  const mSL = new THREE.MeshBasicMaterial({ map: sideLight }), mSD = new THREE.MeshBasicMaterial({ map: sideDark });
+  // +x, -x, +y, -y, +z, -z  (light comes from -x / +z)
+  const box = new THREE.Mesh(new THREE.BoxGeometry(BOARD_W, BOARD_H, BOARD_W), [mSD, mSL, paper, paper, mSL, mSD]);
+  box.position.y = -BOARD_H / 2;
+  scene.add(box);
+
+  const topGeo = new THREE.PlaneGeometry(BOARD_W, BOARD_W); topGeo.rotateX(-Math.PI / 2);
+  boardTop = new THREE.Mesh(topGeo, new THREE.MeshBasicMaterial({ map: boardTex[0] }));
+  boardTop.position.y = 0.0015;
+  scene.add(boardTop);
+
+  // hatched drop shadow on the "table"
+  const sh = new THREE.PlaneGeometry(BOARD_W * 1.18, BOARD_W * 1.18); sh.rotateX(-Math.PI / 2);
+  const shm = new THREE.Mesh(sh, new THREE.MeshBasicMaterial({ map: boardShadowTex, transparent: true, depthWrite: false, opacity: 0.55 }));
+  shm.position.set(0.55, TABLE_Y - 0.002, -0.45);
+  scene.add(shm);
+
+  // jittery ink edges, a few variants to "boil"
+  const h = BOARD_W / 2, y0 = 0.002, y1 = -BOARD_H;
+  const C = [[-h, -h], [h, -h], [h, h], [-h, h]];
+  const edges = [];
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = C[i], [bx, bz] = C[(i + 1) % 4];
+    edges.push([ax, y0, az, bx, y0, bz], [ax, y1, az, bx, y1, bz], [ax, y0, az, ax, y1, az]);
+  }
+  for (let v = 0; v < VARIANTS; v++) {
+    rand = mulberry32(400 + v);
+    const pair = [];
+    for (const passScale of [1, 1.8]) {
+      const arr = [];
+      for (const [x1, y1_, z1, x2, y2, z2] of edges) {
+        const n = Math.max(2, Math.round(Math.hypot(x2 - x1, y2 - y1_, z2 - z1) * 1.5));
+        const ext = 0.04 + rand() * 0.08;
+        const dx = (x2 - x1), dy = (y2 - y1_), dz = (z2 - z1), L = Math.hypot(dx, dy, dz);
+        let prev = null;
+        for (let k = 0; k <= n; k++) {
+          const t = -ext / L + (1 + 2 * ext / L) * (k / n);
+          const p = [x1 + dx * t + rj(0.014 * passScale), y1_ + dy * t + rj(0.006 * passScale), z1 + dz * t + rj(0.014 * passScale)];
+          if (prev) arr.push(...prev, ...p);
+          prev = p;
+        }
+      }
+      const g = new LineSegmentsGeometry(); g.setPositions(arr); pair.push(g);
+    }
+    boardLines.push(pair);
+  }
+  const lA = new LineSegments2(boardLines[0][0], boardLineMatA);
+  const lB = new LineSegments2(boardLines[0][1], boardLineMatB);
+  lA.userData.k = 0; lB.userData.k = 1;
+  scene.add(lA, lB);
+  boardLines.meshes = [lA, lB];
+}
+
+/* ------------------------------------------------------------------ *
+ *  Markers (selection, legal targets, last move, check, puffs)
+ * ------------------------------------------------------------------ */
+const markerGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const markerPool = [];
+const MARKER_LAYER = { last: [0.004, 1], check: [0.006, 3], hover: [0.007, 4], sel: [0.008, 4], dot: [0.009, 5], cap: [0.009, 5] };
+let markerIdx = 0;
+function putMarker(kind, sq) {
+  let m = markerPool[markerIdx++];
+  if (!m) {
+    m = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    scene.add(m); markerPool.push(m);
+  }
+  const { x, z } = sqToXZ(sq);
+  const [y, ro] = MARKER_LAYER[kind];
+  m.position.set(x, y, z); m.renderOrder = ro;
+  m.userData.kind = kind; m.material.map = markerTex[kind][boilStep % VARIANTS]; m.material.needsUpdate = true;
+  m.visible = true;
+}
+
+const puffs = [];
+function spawnPuff(x, z) {
+  let p = puffs.find((q) => !q.visible);
+  if (!p) {
+    p = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ map: markerTex.puff[0], transparent: true, depthWrite: false }));
+    p.renderOrder = 6; scene.add(p); puffs.push(p);
+  }
+  p.material.map = markerTex.puff[(Math.random() * VARIANTS) | 0];
+  p.position.set(x, 0.01, z); p.rotation.y = Math.random() * TAU; p.visible = true; p.userData.t0 = performance.now();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Piece objects
+ * ------------------------------------------------------------------ */
+const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const pieces = [];
+let pieceSeed = 1;
+
+function buildPieceMeshes(o) {
+  o.group.clear();
+  const g = getGeo(o.type, o.color);
+  o.mesh = new THREE.Mesh(g.shade, o.mat); o.mesh.userData.obj = o;
+  const hA = new THREE.Mesh(g.outline, outlineA), hB = new THREE.Mesh(g.outline, outlineB);
+  const ed = new LineSegments2(g.edges, pieceEdgeMat);
+  o.group.add(o.mesh, hA, hB, ed);
+  if (g.extra) o.group.add(new THREE.Mesh(g.extra, inkMat));
+  o.group.rotation.y = (o.type === 'n' ? (o.color === 'w' ? Math.PI - 0.45 : -0.45) : o.color === 'w' ? 0 : Math.PI) + o.twist;
+  o.shadowSize = { p: 0.78, r: 0.9, n: 0.88, b: 0.86, q: 0.95, k: 0.98 }[o.type];
+}
+
+function makePiece(type, color) {
+  const o = {
+    type, color, square: null, group: new THREE.Group(),
+    mat: pieceMaterial(color, (pieceSeed++) * 3.7), twist: (Math.random() - 0.5) * 0.25,
+    lift: 0, glow: 0, tween: null, squash: 0, pop: 0, baseScale: 1, scale: 1,
+    rest: new THREE.Vector3(), dragging: false, needsRebuild: false,
+  };
+  buildPieceMeshes(o);
+  o.shadow = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.5 }));
+  o.shadow.renderOrder = 2;
+  scene.add(o.group, o.shadow);
+  pieces.push(o);
+  return o;
+}
+
+function trayPos(color, idx) {
+  // black pieces captured by White sit at White's right; white pieces at Black's right
+  const col = idx % 2, row = Math.floor(idx / 2);
+  return color === 'b'
+    ? new THREE.Vector3(5.45 + col * 0.72, TABLE_Y, 3.35 - row * 0.78)
+    : new THREE.Vector3(-5.45 - col * 0.72, TABLE_Y, -3.35 + row * 0.78);
+}
+
+function sendTo(o, dest, scale, { delay = 0, capture = false } = {}) {
+  const from = o.group.position.clone();
+  const d = from.distanceTo(dest);
+  o.rest.copy(dest);
+  if (d < 0.02 && Math.abs(o.scale - scale) < 0.01 && !o.tween) { o.baseScale = scale; return; }
+  const dur = capture ? 0.75 : 0.3 + Math.min(d, 9) * 0.045;
+  const h = capture ? 1.3 : (o.type === 'n' ? 0.7 : 0.3) + Math.min(d, 9) * 0.05;
+  o.tween = { from, to: dest.clone(), fromScale: o.scale, toScale: scale, t0: performance.now() + delay * 1000, dur, h, capture, started: false };
+  o.baseScale = scale;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Game state <-> 3D world sync (works for moves, undo, redo, reset)
+ * ------------------------------------------------------------------ */
+const chess = new Chess();
+let redoStack = [];
+
+function sync() {
+  const target = [];
+  for (const row of chess.board()) for (const c of row) if (c) target.push(c);
+  const used = new Set(), assigned = new Map(), remaining = [];
+
+  for (const t of target) {
+    const o = pieces.find((p) => !used.has(p) && p.square === t.square && p.type === t.type && p.color === t.color);
+    if (o) { used.add(o); assigned.set(o, t); } else remaining.push(t);
+  }
+  // fill the rest: same type on board → any on board (promotion) → same type from tray → anything from tray
+  const passes = [(o, t) => o.square && o.type === t.type, (o) => o.square, (o, t) => !o.square && o.type === t.type, (o) => !o.square];
+  for (const pass of passes) {
+    for (let i = remaining.length - 1; i >= 0; i--) {
+      const t = remaining[i], { x, z } = sqToXZ(t.square);
+      let best = null, bd = Infinity;
+      for (const o of pieces) {
+        if (used.has(o) || o.color !== t.color || !pass(o, t)) continue;
+        const d = (o.group.position.x - x) ** 2 + (o.group.position.z - z) ** 2;
+        if (d < bd) { bd = d; best = o; }
+      }
+      if (best) { used.add(best); assigned.set(best, t); remaining.splice(i, 1); }
+    }
+  }
+  for (const t of remaining) { const o = makePiece(t.type, t.color); used.add(o); assigned.set(o, t); }
+
+  for (const [o, t] of assigned) {
+    const { x, z } = sqToXZ(t.square);
+    if (o.type !== t.type) { o.type = t.type; o.needsRebuild = true; }
+    o.square = t.square;
+    sendTo(o, new THREE.Vector3(x, 0, z), 1);
+  }
+  const tray = { w: [], b: [] };
+  for (const o of pieces) if (!used.has(o)) { o._captured = !!o.square; o.square = null; tray[o.color].push(o); }
+  for (const c of ['w', 'b']) {
+    tray[c].sort((a, b) => VALUE[b.type] - VALUE[a.type]);
+    tray[c].forEach((o, i) => sendTo(o, trayPos(c, i), 0.72, { delay: o._captured ? 0.3 : 0, capture: o._captured }));
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Sound: tiny synthesized pencil taps & scratches
+ * ------------------------------------------------------------------ */
+let actx = null, soundOn = true;
+function sfx(kind) {
+  if (!soundOn) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime;
+    const len = kind === 'capture' ? 0.22 : kind === 'pick' ? 0.04 : 0.08;
+    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * len), actx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, kind === 'capture' ? 1.2 : 3);
+    const src = actx.createBufferSource(); src.buffer = buf;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(kind === 'capture' ? 2600 : kind === 'pick' ? 4200 : 1500, t);
+    if (kind === 'capture') bp.frequency.exponentialRampToValueAtTime(900, t + len);
+    const g = actx.createGain(); g.gain.value = kind === 'pick' ? 0.12 : 0.35;
+    src.connect(bp).connect(g).connect(actx.destination); src.start(t);
+    if (kind === 'place') {
+      const osc = actx.createOscillator(), og = actx.createGain();
+      osc.frequency.setValueAtTime(190, t); osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+      og.gain.setValueAtTime(0.35, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc.connect(og).connect(actx.destination); osc.start(t); osc.stop(t + 0.12);
+    }
+  } catch (e) { /* audio is optional */ }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Selection, markers and moves
+ * ------------------------------------------------------------------ */
+let selected = null, targets = [], dragHover = null, pending = null, hoverObj = null;
+
+function refreshMarkers() {
+  for (const m of markerPool) m.visible = false;
+  markerIdx = 0;
+  const hist = chess.history({ verbose: true });
+  const last = hist[hist.length - 1];
+  if (last) { putMarker('last', last.from); putMarker('last', last.to); }
+  if (chess.inCheck()) {
+    for (const row of chess.board()) for (const c of row) if (c && c.type === 'k' && c.color === chess.turn()) putMarker('check', c.square);
+  }
+  if (selected) {
+    putMarker('sel', selected);
+    const seen = new Set();
+    for (const m of targets) {
+      if (seen.has(m.to)) continue; seen.add(m.to);
+      putMarker(m.captured ? 'cap' : 'dot', m.to);
+    }
+  }
+  if (dragHover) putMarker('hover', dragHover);
+}
+
+function select(sq) { selected = sq; targets = chess.moves({ square: sq, verbose: true }); refreshMarkers(); }
+function deselect() { selected = null; targets = []; dragHover = null; refreshMarkers(); }
+const objAt = (sq) => pieces.find((o) => o.square === sq);
+
+function attemptMove(from, to, dragged) {
+  const cands = targets.filter((m) => m.to === to);
+  if (!cands.length) return;
+  if (cands.some((m) => m.promotion)) {
+    pending = { from, to };
+    const o = objAt(from);
+    if (o) { const { x, z } = sqToXZ(to); sendTo(o, new THREE.Vector3(x, 0.35, z), 1); }
+    deselectVisualOnly();
+    showPromotion(chess.turn()).then((choice) => {
+      pending = null;
+      if (choice) commit({ from, to, promotion: choice });
+      else { deselect(); sync(); }
+      controls.enabled = true;
+    });
+    return;
+  }
+  commit({ from, to });
+}
+function deselectVisualOnly() { for (const m of markerPool) if (m.userData.kind === 'dot' || m.userData.kind === 'cap' || m.userData.kind === 'hover') m.visible = false; }
+
+function commit(m) {
+  let res;
+  try { res = chess.move(m); } catch (e) { deselect(); sync(); return; }
+  redoStack = [];
+  deselect();
+  sync();
+  updateUI();
+  hideHint();
+}
+
+function undo() {
+  if (pending) return;
+  const m = chess.undo();
+  if (!m) return;
+  redoStack.push({ from: m.from, to: m.to, promotion: m.promotion });
+  deselect(); sync(); updateUI(); hideModal(overEl);
+}
+function redo() {
+  if (pending) return;
+  const m = redoStack.pop();
+  if (!m) return;
+  try { chess.move(m); } catch (e) { redoStack = []; }
+  deselect(); sync(); updateUI();
+}
+function newGame() {
+  if (pending) cancelPromotion();
+  chess.reset(); redoStack = []; overShownFor = null;
+  deselect(); sync(); updateUI(); hideModal(overEl);
+}
+
+/* ------------------------------------------------------------------ *
+ *  HUD
+ * ------------------------------------------------------------------ */
+const $ = (id) => document.getElementById(id);
+const overEl = $('over'), promoEl = $('promo');
+let overShownFor = null, bannerTimer = 0;
+
+function showBanner(text, sub = '', cls = '') {
+  const b = $('banner');
+  $('bannerText').textContent = text; $('bannerSub').textContent = sub;
+  b.className = 'ui sketch show ' + cls;
+  clearTimeout(bannerTimer);
+}
+function hideBanner() { $('banner').classList.remove('show'); }
+
+function updateUI() {
+  const turn = chess.turn();
+  $('turnText').textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+  $('turnSwatch').setAttribute('fill', turn === 'w' ? '#fbf9f3' : 'url(#hatch)');
+  $('moveNo').textContent = 'Move ' + chess.moveNumber();
+  $('bUndo').disabled = chess.history().length === 0;
+  $('bRedo').disabled = redoStack.length === 0;
+
+  const winner = turn === 'w' ? 'Black' : 'White';
+  let title = '', sub = '';
+  if (chess.isCheckmate()) { title = 'Checkmate!'; sub = `${winner} wins`; showBanner(title, sub, 'check'); }
+  else if (chess.isDraw()) {
+    title = 'Draw';
+    sub = chess.isStalemate() ? 'stalemate — no legal moves' : chess.isThreefoldRepetition() ? 'threefold repetition'
+      : chess.isInsufficientMaterial() ? 'insufficient material' : '50-move rule';
+    showBanner(title, sub);
+  } else if (chess.inCheck()) {
+    showBanner('Check!', `${turn === 'w' ? 'White' : 'Black'} king is under attack`, 'check');
+  } else hideBanner();
+
+  if (chess.isGameOver() && overShownFor !== chess.fen()) {
+    overShownFor = chess.fen();
+    $('overTitle').textContent = title;
+    $('overSub').textContent = title === 'Draw' ? `It's a draw by ${sub}.` : `${sub} after ${chess.moveNumber() - (turn === 'w' ? 1 : 0)} moves.`;
+    setTimeout(() => showModal(overEl), 900);
+  }
+  renderLog();
+  refreshMarkers();
+}
+
+function renderLog() {
+  const h = chess.history();
+  const ol = $('logList');
+  if (!h.length) { ol.innerHTML = '<li class="empty">No moves yet — White starts.</li>'; return; }
+  let html = '';
+  for (let i = 0; i < h.length; i += 2) {
+    const cls = (k) => (k === h.length - 1 ? ' class="last"' : '');
+    html += `<li><b${cls(i)}>${h[i]}</b>${h[i + 1] ? `<b${cls(i + 1)}>${h[i + 1]}</b>` : ''}</li>`;
+  }
+  ol.innerHTML = html;
+  ol.scrollTop = ol.scrollHeight;
+}
+
+function showModal(el) { el.classList.add('show'); el.setAttribute('aria-hidden', 'false'); }
+function hideModal(el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); }
+
+let promoResolve = null;
+const thumbs = {};
+function showPromotion(color) {
+  const box = $('promoChoices');
+  box.innerHTML = '';
+  for (const t of ['q', 'r', 'b', 'n']) {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.innerHTML = `<img alt="" src="${thumbs[color + t] || ''}"><span>${NAMES[t]}</span>`;
+    b.onclick = () => finishPromotion(t);
+    box.appendChild(b);
+  }
+  showModal(promoEl);
+  setTimeout(() => box.firstChild && box.firstChild.focus(), 50);
+  return new Promise((res) => { promoResolve = res; });
+}
+function finishPromotion(choice) { hideModal(promoEl); const r = promoResolve; promoResolve = null; r && r(choice); }
+function cancelPromotion() { finishPromotion(null); }
+promoEl.addEventListener('pointerdown', (e) => { if (e.target === promoEl) cancelPromotion(); });
+
+// 3D-rendered thumbnails of the promotion pieces, using the same sketch shaders
+function makeThumbs() {
+  const S = 184;
+  const r2 = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r2.setPixelRatio(1); r2.setSize(S, S); r2.setClearColor(0, 0);
+  const sc = new THREE.Scene();
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
+  cam.position.set(0, 1.55, 3.3); cam.lookAt(0, 0.56, 0);
+  const save = { res: U.uRes.value.clone(), pr: U.uPR.value, wa: outlineA.uniforms.uWidth.value, wb: outlineB.uniforms.uWidth.value, ob: outlineB.uniforms.uOffset.value.clone(), lr: pieceEdgeMat.resolution.clone() };
+  U.uRes.value.set(S, S); U.uPR.value = 1; outlineA.uniforms.uWidth.value = 2.2; outlineB.uniforms.uWidth.value = 1.1;
+  outlineB.uniforms.uOffset.value.set(1.2, -1); pieceEdgeMat.resolution.set(S, S);
+  for (const color of ['w', 'b']) for (const t of ['q', 'r', 'b', 'n']) {
+    const g = getGeo(t, color), grp = new THREE.Group();
+    grp.add(new THREE.Mesh(g.shade, pieceMaterial(color, 5)), new THREE.Mesh(g.outline, outlineA), new THREE.Mesh(g.outline, outlineB), new LineSegments2(g.edges, pieceEdgeMat));
+    if (g.extra) grp.add(new THREE.Mesh(g.extra, inkMat));
+    grp.rotation.y = t === 'n' ? Math.PI - 0.5 : -0.35;
+    sc.add(grp); r2.render(sc, cam); thumbs[color + t] = r2.domElement.toDataURL(); sc.remove(grp);
+  }
+  U.uRes.value.copy(save.res); U.uPR.value = save.pr; outlineA.uniforms.uWidth.value = save.wa; outlineB.uniforms.uWidth.value = save.wb;
+  outlineB.uniforms.uOffset.value.copy(save.ob); pieceEdgeMat.resolution.copy(save.lr);
+  r2.dispose(); r2.forceContextLoss();
+}
+
+let hintHidden = false;
+function hideHint() { if (!hintHidden) { hintHidden = true; setTimeout(() => $('hint').classList.add('fade'), 2500); } }
+
+/* ------------------------------------------------------------------ *
+ *  Camera: framing, reset, flip
+ * ------------------------------------------------------------------ */
+// Pointer listener for picking is registered BEFORE OrbitControls so it can veto orbiting.
+canvas.addEventListener('pointerdown', onPointerDown);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 5; controls.maxDistance = 42; controls.maxPolarAngle = 1.42;
+controls.target.set(0, -0.1, 0);
+controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+let userMovedCamera = false, viewSide = 'w', camTween = null;
+controls.addEventListener('start', () => { if (!camTween) userMovedCamera = true; hideHint(); });
+
+function fitDistance() {
+  const vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+  // landscape: fit board + capture trays; portrait: fit the board, trays may peek off the sides
+  const halfW = camera.aspect >= 1.1 ? 7.4 : 5.3;
+  return clamp(Math.max(halfW / Math.tan(hf / 2), 5.4 / Math.tan(vf / 2)), 9, 40);
+}
+function defaultSpherical(side) { return new THREE.Spherical(fitDistance(), 0.74, side === 'w' ? 0 : Math.PI); }
+function setView(side, animate) {
+  const s = defaultSpherical(side);
+  if (!animate) {
+    controls.target.set(0, -0.1, 0);
+    camera.position.setFromSpherical(s).add(controls.target);
+    controls.update();
+    return;
+  }
+  const from = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  let dTheta = s.theta - from.theta;
+  dTheta = ((dTheta + Math.PI) % TAU + TAU) % TAU - Math.PI;   // shortest way round
+  if (Math.abs(Math.abs(dTheta) - Math.PI) < 0.05) dTheta = Math.PI; // a flip always goes the same way
+  camTween = { from, to: new THREE.Spherical(s.radius, s.phi, from.theta + dTheta), t0: performance.now(), dur: 1.0, tFrom: controls.target.clone() };
+  controls.enabled = false;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Pointer interaction: hover, click-to-move, drag & drop
+ * ------------------------------------------------------------------ */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const boardPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const dragTarget = new THREE.Vector3();
+let drag = null;
+const activePointers = new Set();
+
+function setRay(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+}
+function boardPoint() { const p = new THREE.Vector3(); return raycaster.ray.intersectPlane(boardPlane, p) ? p : null; }
+function pickPiece() {
+  const hit = raycaster.intersectObjects(pieces.filter((o) => o.square).map((o) => o.mesh), false)[0];
+  return hit ? hit.object.userData.obj : null;
+}
+// Squares under the pointer, nearest first: every piece the ray passes through, then the board itself.
+// Tall pieces often hide the square behind them, so a legal target anywhere along the ray wins.
+function pickSquare() {
+  const sqs = raycaster.intersectObjects(pieces.filter((o) => o.square).map((o) => o.mesh), false).map((h) => h.object.userData.obj.square);
+  const bp = boardPoint(), bsq = bp && xzToSq(bp.x, bp.z);
+  if (bsq) sqs.push(bsq);
+  if (selected) { const t = sqs.find((s) => targets.some((m) => m.to === s)); if (t) return t; }
+  return sqs[0] || null;
+}
+const gameOver = () => chess.isGameOver();
+
+function onPointerDown(e) {
+  activePointers.add(e.pointerId);
+  if (activePointers.size > 1) { cancelDrag(); controls.enabled = !camTween; return; }
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (pending || camTween) return;
+  setRay(e);
+  const sq = pickSquare();
+
+  if (selected && sq && targets.some((m) => m.to === sq)) {
+    controls.enabled = false;
+    attemptMove(selected, sq, false);
+    return;
+  }
+  const p = sq ? chess.get(sq) : null;
+  if (!gameOver() && p && p.color === chess.turn()) {
+    controls.enabled = false;
+    const was = selected === sq;
+    select(sq);
+    drag = { obj: objAt(sq), sx: e.clientX, sy: e.clientY, active: false, was, id: e.pointerId };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    return;
+  }
+  if (selected) deselect();
+}
+
+canvas.addEventListener('pointermove', (e) => {
+  if (drag && e.pointerId === drag.id) {
+    if (!drag.active && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6 && drag.obj) {
+      drag.active = true; drag.obj.dragging = true; drag.obj.tween = null; sfx('pick'); hideHint();
+    }
+    if (drag.active) {
+      setRay(e);
+      const bp = boardPoint();
+      if (bp) {
+        dragTarget.set(clamp(bp.x, -5, 5), 0, clamp(bp.z, -5, 5));
+        const sq = pickSquare();
+        const hov = sq && targets.some((m) => m.to === sq) ? sq : null;
+        if (hov !== dragHover) { dragHover = hov; refreshMarkers(); }
+      }
+    }
+    return;
+  }
+  if (e.pointerType !== 'mouse' || e.buttons) return;
+  setRay(e);
+  const o = pickPiece();
+  hoverObj = (o && !gameOver() && !pending && o.color === chess.turn()) ? o : null;
+  let cursor = hoverObj ? 'grab' : 'default';
+  if (selected) {
+    const sq = pickSquare();
+    if (sq && targets.some((m) => m.to === sq)) { cursor = 'pointer'; hoverObj = null; }
+  }
+  canvas.style.cursor = cursor;
+});
+canvas.addEventListener('pointerleave', () => { hoverObj = null; });
+
+function onPointerUp(e) {
+  activePointers.delete(e.pointerId);
+  if (drag && e.pointerId === drag.id) {
+    const d = drag; drag = null;
+    if (d.obj) d.obj.dragging = false;
+    if (d.active) {
+      dragHover = null;
+      setRay(e);
+      const sq = pickSquare();
+      if (sq && targets.some((m) => m.to === sq)) attemptMove(selected, sq, true);
+      else { sync(); refreshMarkers(); }
+    } else if (d.was) deselect();
+  }
+  if (!pending && !camTween) controls.enabled = true;
+}
+canvas.addEventListener('pointerup', onPointerUp);
+canvas.addEventListener('pointercancel', onPointerUp);
+
+function cancelDrag() {
+  if (!drag) return;
+  if (drag.obj) drag.obj.dragging = false;
+  drag = null; dragHover = null; sync(); refreshMarkers();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Buttons & keys
+ * ------------------------------------------------------------------ */
+let wiggle = true;
+$('bNew').onclick = newGame;
+$('bUndo').onclick = undo;
+$('bRedo').onclick = redo;
+$('bFlip').onclick = () => { viewSide = viewSide === 'w' ? 'b' : 'w'; userMovedCamera = false; setView(viewSide, true); };
+$('bView').onclick = () => { userMovedCamera = false; setView(viewSide, true); };
+$('bWiggle').onclick = () => { wiggle = !wiggle; $('bWiggle').classList.toggle('off', !wiggle); };
+$('bSound').onclick = () => { soundOn = !soundOn; $('bSound').classList.toggle('off', !soundOn); };
+$('overNew').onclick = newGame;
+$('overLook').onclick = () => hideModal(overEl);
+$('logHead').onclick = () => { const l = $('log'); l.classList.toggle('collapsed'); $('logToggle').textContent = l.classList.contains('collapsed') ? 'show' : 'hide'; };
+if (innerWidth < 760) $('logHead').onclick();
+
+addEventListener('keydown', (e) => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (e.key === 'Escape') { if (pending) cancelPromotion(); else if (overEl.classList.contains('show')) hideModal(overEl); else deselect(); }
+  else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+  else if (!mod && e.key.toLowerCase() === 'f') $('bFlip').onclick();
+  else if (!mod && e.key.toLowerCase() === 'c') $('bView').onclick();
+});
+
+/* ------------------------------------------------------------------ *
+ *  Resize & frame loop
+ * ------------------------------------------------------------------ */
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  const pr = renderer.getPixelRatio();
+  U.uPR.value = pr; U.uRes.value.set(w * pr, h * pr);
+  const thin = w < 760 ? 0.85 : 1;
+  outlineA.uniforms.uWidth.value = 2.0 * pr * thin;
+  outlineB.uniforms.uWidth.value = 1.0 * pr * thin;
+  outlineB.uniforms.uOffset.value.set(1.3 * pr, -1.0 * pr);
+  for (const m of lineMats) m.resolution.set(w, h);
+  if (!userMovedCamera && !camTween) setView(viewSide, false);
+}
+addEventListener('resize', resize);
+
+let boilStep = 0, wiggleTime = 0, lastT = performance.now();
+const tmp = new THREE.Vector3();
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  if (wiggle) wiggleTime += dt;
+  U.uTime.value = wiggleTime;
+
+  const step = Math.floor(wiggleTime * 5);
+  if (step !== boilStep) {
+    boilStep = step;
+    const v = step % VARIANTS;
+    boardTop.material.map = boardTex[v];
+    boardLines.meshes[0].geometry = boardLines[v][0];
+    boardLines.meshes[1].geometry = boardLines[v][1];
+    for (const m of markerPool) if (m.visible) m.material.map = markerTex[m.userData.kind][v];
+  }
+
+  // camera tween (orbits around instead of cutting through the board)
+  if (camTween) {
+    const k = Math.min(1, (now - camTween.t0) / 1000 / camTween.dur), e = ease(k);
+    const s = new THREE.Spherical(
+      camTween.from.radius + (camTween.to.radius - camTween.from.radius) * e,
+      camTween.from.phi + (camTween.to.phi - camTween.from.phi) * e,
+      camTween.from.theta + (camTween.to.theta - camTween.from.theta) * e);
+    controls.target.lerpVectors(camTween.tFrom, new THREE.Vector3(0, -0.1, 0), e);
+    camera.position.setFromSpherical(s).add(controls.target);
+    camera.lookAt(controls.target);
+    if (k >= 1) { camTween = null; controls.enabled = true; controls.update(); }
+  } else controls.update();
+
+  const t = now / 1000;
+  for (const o of pieces) {
+    const sel = o.square && o.square === selected && !o.tween;
+    const liftTarget = o.dragging ? 0 : sel ? 0.24 + Math.sin(t * 4) * 0.03 : (o === hoverObj ? 0.09 : 0);
+    o.lift += (liftTarget - o.lift) * Math.min(1, dt * 14);
+    o.glow += ((sel || o.dragging ? 1 : 0) - o.glow) * Math.min(1, dt * 10);
+    o.mat.uniforms.uGlow.value = o.glow;
+
+    const p = o.group.position;
+    if (o.dragging) {
+      tmp.set(dragTarget.x, 0.55, dragTarget.z);
+      p.lerp(tmp, Math.min(1, dt * 22));
+      o.group.rotation.z = clamp((tmp.x - p.x) * -0.6, -0.35, 0.35);
+      o.group.rotation.x = clamp((tmp.z - p.z) * 0.6, -0.35, 0.35);
+    } else if (o.tween) {
+      const tw = o.tween;
+      let k = (now - tw.t0) / 1000 / tw.dur;
+      if (k >= 0 && !tw.started) { tw.started = true; if (tw.capture) sfx('capture'); }
+      k = clamp(k, 0, 1);
+      const e = ease(k);
+      p.lerpVectors(tw.from, tw.to, e);
+      p.y += tw.h * 4 * e * (1 - e);
+      o.scale = tw.fromScale + (tw.toScale - tw.fromScale) * e;
+      if (tw.capture) o.group.rotation.z = Math.sin(e * Math.PI) * 0.6 * (o.color === 'w' ? 1 : -1);
+      if (k >= 1) {
+        o.tween = null; o.group.rotation.z = 0;
+        if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
+        o.squash = 1;
+        if (o.square) { sfx('place'); if (!pending) spawnPuff(p.x, p.z); }
+      }
+    } else {
+      p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
+      o.group.rotation.x *= 0.8; o.group.rotation.z *= 0.8;
+      if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
+    }
+    o.squash = Math.max(0, o.squash - dt * 5);
+    o.pop = Math.max(0, o.pop - dt * 3);
+    const sq = Math.sin(o.squash * Math.PI) * 0.12, pop = Math.sin(o.pop * Math.PI) * 0.25;
+    const sc = o.scale * (1 + pop);
+    o.group.scale.set(sc * (1 + sq * 0.5), sc * (1 - sq), sc * (1 + sq * 0.5));
+
+    // hatched contact shadow, cast away from the light; shrinks as the piece rises
+    const ground = (o.tween ? (o.tween.to.y <= TABLE_Y + 0.01 ? TABLE_Y : 0) : o.rest.y <= TABLE_Y + 0.01 ? TABLE_Y : 0);
+    const hgt = Math.max(0, p.y - ground);
+    const L = U.uLight.value;
+    o.shadow.position.set(p.x - L.x * (0.12 + hgt * 0.5), ground + 0.005, p.z - L.z * (0.12 + hgt * 0.5));
+    const ss = o.shadowSize * o.scale * (1 + hgt * 0.35);
+    o.shadow.scale.set(ss * 1.15, 1, ss);
+    o.shadow.material.opacity = 0.5 / (1 + hgt * 1.6);
+  }
+
+  for (const pf of puffs) if (pf.visible) {
+    const k = (now - pf.userData.t0) / 380;
+    if (k >= 1) { pf.visible = false; continue; }
+    const s = 0.7 + k * 0.6; pf.scale.set(s, 1, s); pf.material.opacity = 1 - k;
+  }
+
+  renderer.render(scene, camera);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Boot
+ * ------------------------------------------------------------------ */
+async function boot() {
+  try {
+    await Promise.race([
+      Promise.all([document.fonts.load('700 80px Caveat'), document.fonts.load('20px "Patrick Hand"')]),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]);
+  } catch (e) { /* fall back to cursive */ }
+  buildTextures();
+  buildBoard();
+  for (const row of chess.board()) for (const c of row) if (c) {
+    const o = makePiece(c.type, c.color);
+    const { x, z } = sqToXZ(c.square);
+    o.square = c.square; o.rest.set(x, 0, z); o.group.position.copy(o.rest);
+  }
+  resize();
+  makeThumbs();
+  updateUI();
+  requestAnimationFrame(frame);
+  $('loading').classList.add('done');
+}
+boot();
+</script>
+</body>
+</html>
