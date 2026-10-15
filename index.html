@@ -143,6 +143,34 @@
   .film-panel { width: 340px; flex: none; padding: 14px 18px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
   .film-panel h2 { font-family: 'Caveat', cursive; font-size: 34px; margin: 0; line-height: 1; }
   .fstory { flex-wrap: nowrap; }
+  #fEdit.on { background: var(--hl); }
+  .film-editor { width: 400px; flex: none; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+  .film-editor[hidden] { display: none; }
+  .fedhead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .film-editor h2 { font-family: 'Caveat', cursive; font-size: 34px; margin: 0; line-height: 1; }
+  .fdirty { color: var(--red); font-size: 14px; }
+  .fedgroup { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1.5px dashed var(--graphite); }
+  .fedlabel { font-size: 19px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .fedlabel small { color: var(--ink-soft); font-size: 14px; }
+  .ftools { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tool { font: inherit; font-size: 15px; padding: 4px 9px; color: var(--ink); background: var(--paper-2); cursor: pointer;
+    border: 1.5px solid var(--ink); border-radius: 10px 3px 9px 4px; }
+  .tool:hover { background-image: repeating-linear-gradient(-55deg, rgba(27, 26, 23, .1) 0 1.5px, transparent 1.5px 6px); }
+  .tool.on { background: var(--hl); }
+  .tool:focus-visible, .swatch:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
+  .fcolors { display: flex; gap: 9px; padding: 2px 0; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); background: var(--c); cursor: pointer; padding: 0; }
+  .swatch.on { box-shadow: 0 0 0 3px var(--paper-2), 0 0 0 5px var(--ink); }
+  #fLabelText { flex: 1; min-width: 120px; font: inherit; font-size: 16px; padding: 4px 8px; color: var(--ink); background: var(--paper-2);
+    border: 1.5px solid var(--ink); border-radius: 8px 3px 8px 4px; -webkit-user-select: text; user-select: text; }
+  .fcamstate { font-size: 14px; padding: 1px 9px; border-radius: 9px; background: rgba(27, 26, 23, .08); }
+  .fcamstate.free { background: var(--hl); }
+  #fText { flex: 1; min-height: 240px; resize: vertical; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink);
+    background: var(--paper-2); border: 2px solid var(--ink); border-radius: 6px 3px 7px 4px; padding: 10px; -webkit-user-select: text; user-select: text; }
+  #fText:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
+  #fEdStatus.err { color: var(--red); cursor: pointer; }
+  body.editing #filmCanvas { cursor: grab; }
+  body.editing.tooling #filmCanvas { cursor: crosshair; }
   #fStory { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 6px 8px; color: var(--ink); background: var(--paper-2);
     border: 2px solid var(--ink); border-radius: 12px 4px 10px 5px; cursor: pointer; }
   #fStory:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
@@ -176,6 +204,7 @@
     #film { flex-direction: column; overflow-y: auto; }
     .film-stage { flex: none; height: 64vh; }
     .film-panel { width: auto; }
+    .film-editor { width: auto; }
   }
 
   @media (max-width: 760px) {
@@ -259,6 +288,45 @@
 
 <div id="film" aria-hidden="true">
   <div class="film-stage"></div>
+  <section id="fEditor" class="film-editor sketch" hidden aria-label="Story editor">
+    <header class="fedhead"><h2>Story editor</h2><span id="fDirty" class="fdirty" hidden>● unsaved changes</span></header>
+    <div class="fedgroup">
+      <div class="fedlabel">Mark the board <small>pick a tool, then click squares on the preview</small></div>
+      <div class="ftools" role="toolbar" aria-label="Annotation tools">
+        <button class="tool" data-tool="csl" title="Circle a square">◯ Circle</button>
+        <button class="tool" data-tool="cal" title="Arrow: click the start square, then the end square">→ Arrow</button>
+        <button class="tool" data-tool="zone" title="Hatch a square">▨ Zone</button>
+        <button class="tool" data-tool="cross" title="Cross out a square">✕ Cross</button>
+        <button class="tool" data-tool="tick" title="Tick a square">✓ Tick</button>
+        <button class="tool" data-tool="label" title="Write a label next to a square">✎ Label</button>
+      </div>
+      <div class="frow">
+        <div class="fcolors" role="radiogroup" aria-label="Pencil colour">
+          <button class="swatch on" data-color="R" role="radio" aria-checked="true" title="Red pencil" style="--c:#c2361f"></button>
+          <button class="swatch" data-color="B" role="radio" aria-checked="false" title="Blue pencil" style="--c:#2b56b8"></button>
+          <button class="swatch" data-color="G" role="radio" aria-checked="false" title="Graphite" style="--c:#3a372f"></button>
+          <button class="swatch" data-color="Y" role="radio" aria-checked="false" title="Highlighter" style="--c:#f2c21c"></button>
+        </div>
+        <input id="fLabelText" type="text" placeholder="label text, e.g. weak" hidden aria-label="Label text">
+      </div>
+      <div id="fToolHint" class="fnote">Marks are added at the current moment of the film, after the last move shown.</div>
+    </div>
+    <div class="fedgroup">
+      <div class="fedlabel">Camera <span id="fCamState" class="fcamstate">director</span></div>
+      <div class="fnote">With no tool selected: drag the preview to orbit, right-drag to pan, scroll to zoom.</div>
+      <div class="frow">
+        <button class="btn sketch" id="fUseView" disabled title="Save this exact view as the camera from this moment on">Use this view</button>
+        <button class="btn sketch" id="fDirector" disabled title="Hand the camera back to the director (Esc)">Back to director</button>
+      </div>
+    </div>
+    <textarea id="fText" spellcheck="false" autocomplete="off" aria-label="Story PGN"></textarea>
+    <div id="fEdStatus" class="fnote"></div>
+    <div class="frow">
+      <button class="btn sketch" id="fSave" title="Download this story as a .pgn file">Save .pgn</button>
+      <button class="btn sketch" id="fRevert" title="Go back to the story as it was loaded (undo brings it back)">Revert</button>
+      <button class="btn sketch" id="fUndo" title="Undo the last change">Undo</button>
+    </div>
+  </section>
   <aside class="film-panel sketch">
     <h2>Film studio</h2>
     <div class="frow fstory">
@@ -267,6 +335,7 @@
       <input type="file" id="fPgnInput" accept=".pgn,.txt" hidden>
     </div>
     <div id="fStoryNote" class="fnote"></div>
+    <button class="btn sketch" id="fEdit" aria-pressed="false" title="Edit the story: text, marks and camera">✎ Edit story</button>
     <div class="frow">
       <button class="btn sketch" id="fPlay" title="Play / pause (Space)"><svg viewBox="0 0 24 24"><path d="M7 4.5 19.5 12 7 19.5z"/></svg><span class="lbl">Play</span></button>
       <span id="fTime">0:00 / 0:00</span>
@@ -1503,9 +1572,9 @@ if (innerWidth < 760) $('logHead').onclick();
 addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
   if (film.active) {
-    if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    if (['TEXTAREA', 'SELECT'].includes(e.target.tagName) || (e.target.tagName === 'INPUT' && e.target.type !== 'range')) return;
     if (e.key === ' ') { e.preventDefault(); $('fPlay').click(); }
-    else if (e.key === 'Escape') exitFilm();
+    else if (e.key === 'Escape') { if (!studioEscape()) exitFilm(); }
     else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
       const i = clamp(film.beatIdx + (e.key === 'ArrowRight' ? 1 : (film.t - film.comp.beats[film.beatIdx].start > 1 ? 0 : -1)), 0, film.comp.beats.length - 1);
@@ -1676,31 +1745,37 @@ function parseComment(raw) {
     .replace(/\s+/g, ' ').trim();
   return { text, tags };
 }
+// Every clean-up below keeps the text the same length, so token positions point straight into the
+// original story text (the studio editor writes tags back at those positions).
+const blank = (m) => m.replace(/[^\n]/g, ' ');
+function storyError(msg, pos) { const e = new Error(msg); e.pos = pos; return e; }
 function parseStory(src) {
   const headers = {}, warnings = [];
   const body = restOfLineComments(src
-    .replace(/^\s*\[(\w+)\s+"([^"]*)"\]\s*$/gm, (m, k, v) => { headers[k] = v; return ''; })
-    .replace(/^%.*$/gm, ''))                        // PGN escape lines
-    .replace(/\be\.p\./g, '')
+    .replace(/^\s*\[(\w+)\s+"([^"]*)"\]\s*$/gm, (m, k, v) => { headers[k] = v; return blank(m); })
+    .replace(/^%.*$/gm, blank))                     // PGN escape lines
+    .replace(/\be\.p\./g, '    ')
     .replace(/\b0-0-0\b/g, 'O-O-O').replace(/\b0-0(?![-\d])/g, 'O-O');
   const re = /\{([^}]*)\}|(\()|(\))|\$(\d+)|(\d+\.(?:\.\.)?)|(1-0|0-1|1\/2-1\/2|\*)|((?:[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O-O|O-O)[+#]?)(!!|!\?|\?!|!|\?\?|\?)?|(\S+)/g;
   const root = [], stack = [root];
-  let m;
+  let m, numAt = null;
   while ((m = re.exec(body))) {
-    const cur = stack[stack.length - 1];
-    if (m[1] !== undefined) cur.push({ type: 'comment', ...parseComment(m[1]) });
+    const cur = stack[stack.length - 1], end = m.index + m[0].length;
+    if (m[5]) { numAt = m.index; continue; }
+    if (m[1] !== undefined) cur.push({ type: 'comment', ...parseComment(m[1]), start: m.index, end });
     else if (m[2]) {
       const prev = [...cur].reverse().find((n) => n.type === 'move');
-      if (!prev) throw new Error('Variation "(" with no move before it');
+      if (!prev) throw storyError('Variation "(" with no move before it', m.index);
       const v = []; prev.vars.push(v); stack.push(v);
-    } else if (m[3]) { if (stack.length < 2) throw new Error('Unbalanced ")"'); stack.pop(); }
-    else if (m[4]) { const prev = [...cur].reverse().find((n) => n.type === 'move'); if (prev) prev.nag = NAG[m[4]] || prev.nag; }
-    else if (m[5] || m[6]) { if (m[6]) headers.Result = headers.Result || m[6]; }
-    else if (m[7]) cur.push({ type: 'move', san: m[7], nag: m[8] || '', vars: [] });
-    else if (/[a-h][1-8]/.test(m[9])) throw new Error(`Couldn't read the move "${m[9]}"`);
+    } else if (m[3]) { if (stack.length < 2) throw storyError('Unbalanced ")"', m.index); stack.pop(); }
+    else if (m[4]) { const prev = [...cur].reverse().find((n) => n.type === 'move'); if (prev) { prev.nag = NAG[m[4]] || prev.nag; if (cur[cur.length - 1] === prev) prev.end = end; } }
+    else if (m[6]) headers.Result = headers.Result || m[6];
+    else if (m[7]) cur.push({ type: 'move', san: m[7], nag: m[8] || '', vars: [], start: numAt ?? m.index, end });
+    else if (/[a-h][1-8]/.test(m[9])) throw storyError(`Couldn't read the move "${m[9]}"`, m.index);
     else warnings.push(m[9]); // evaluation symbols like +=, ±, N, etc.
+    numAt = null;
   }
-  if (stack.length !== 1) throw new Error('Unclosed variation');
+  if (stack.length !== 1) throw storyError('Unclosed variation', body.length);
   return { headers, root, warnings };
 }
 // PGN ";" comments run to the end of the line; turn them into {braces}, leaving ";" inside {comments} alone.
@@ -1711,9 +1786,10 @@ function restOfLineComments(s) {
     if (ch === '{') depth++;
     else if (ch === '}') depth = Math.max(0, depth - 1);
     else if (ch === ';' && !depth) {
+      // same length: ";" → "{", the line break → "}"
       const end = s.indexOf('\n', i);
-      const text = s.slice(i + 1, end < 0 ? s.length : end).replace(/[{}]/g, '');
-      out += `{${text}}`; i = end < 0 ? s.length : end - 1; continue;
+      const text = s.slice(i + 1, end < 0 ? s.length : end).replace(/[{}]/g, ' ');
+      out += `{${text}}`; i = end < 0 ? s.length : end; continue;
     }
     out += ch;
   }
@@ -1740,7 +1816,8 @@ const readTime = (s) => (s ? words(s) / 2.6 + 1.6 : 0);
 const quoted = (args) => { const q = args.match(/"([^"]*)"/); return q ? q[1] : args; };
 function parseCam(args) {
   const tok = args.split(/\s+/).filter(Boolean);
-  return { preset: tok[0] || 'frame', squares: tok.filter((x) => SQ_RE.test(x)), side: tok.includes('b') ? 'b' : 'w' };
+  return { preset: tok[0] || 'frame', squares: tok.filter((x) => SQ_RE.test(x)), side: tok.includes('b') ? 'b' : 'w',
+    nums: tok.slice(1).filter((x) => /^-?\d*\.?\d+$/.test(x)).map(Number) };
 }
 function tickerText(fenBefore, san, nag) {
   const [, turn, , , , full] = fenBefore.split(' ');
@@ -1756,9 +1833,10 @@ function compileStory(story, vo = {}) {
   if (story.headers.FEN) g.load(story.headers.FEN);
   const beats = [];
   let beat = null, ply = 0;
-  const openBeat = (caption, tags) => {
+  const openBeat = (caption, tags, open = null) => {
     beat = { idx: beats.length, id: 'vo-' + String(beats.length + 1).padStart(2, '0'), caption, title: null, fen: g.fen(),
-      ticker: beats.length ? beats[beats.length - 1].lastTicker : null, lastTicker: null, timelapse: 0, speed: 1, items: [] };
+      ticker: beats.length ? beats[beats.length - 1].lastTicker : null, lastTicker: null, timelapse: 0, speed: 1, items: [],
+      open, firstMoveStart: null };
     for (const t of tags) {
       if (t.k === 'title') beat.title = quoted(t.args);
       else if (t.k === 'timelapse') beat.timelapse = parseFloat(t.args) || 0.3;
@@ -1771,7 +1849,7 @@ function compileStory(story, vo = {}) {
     const gg = new Chess(fen), out = [];
     for (const n of nodes) if (n.type === 'move') {
       let mv;
-      try { mv = gg.move(n.san); } catch (e) { throw new Error(`Illegal move ${n.san} in a variation`); }
+      try { mv = gg.move(n.san); } catch (e) { throw storyError(`Illegal move ${n.san} in a variation`, n.start); }
       out.push({ ...mv, nag: n.nag });
     }
     return out;
@@ -1779,22 +1857,27 @@ function compileStory(story, vo = {}) {
   for (const n of story.root) {
     if (n.type === 'comment') {
       const opens = n.text || n.tags.some((t) => t.k === 'title');
-      if (opens) openBeat(n.text, n.tags);
+      if (opens) openBeat(n.text, n.tags, { start: n.start, end: n.end });
       else if (!beat) openBeat('', []);
-      beat.items.push({ kind: 'cue', tags: n.tags.filter((t) => !['title', 'timelapse', 'speed', 'vo'].includes(t.k) || !opens) });
+      beat.items.push({ kind: 'cue', tags: n.tags.filter((t) => !['title', 'timelapse', 'speed', 'vo'].includes(t.k) || !opens), start: n.start, end: n.end });
     } else {
       if (!beat) openBeat('', []);
+      if (beat.firstMoveStart == null) beat.firstMoveStart = n.start;
       const before = g.fen();
       let mv;
-      try { mv = g.move(n.san); } catch (e) { throw new Error(`Illegal move ${n.san} at ply ${ply + 1}`); }
+      try { mv = g.move(n.san); } catch (e) { throw storyError(`Illegal move ${n.san} at ply ${ply + 1}`, n.start); }
       ply++;
       const ticker = tickerText(before, mv.san, n.nag);
       beat.lastTicker = ticker;
       beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
-        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })) });
+        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), end: n.end });
     }
   }
-  for (const b of beats) if (!b.lastTicker) b.lastTicker = b.ticker;
+  for (const b of beats) {
+    if (!b.lastTicker) b.lastTicker = b.ticker;
+    // a tag-only comment right after a move is where marks for "after this move" belong
+    b.items.forEach((it, i) => { const nx = b.items[i + 1]; if (it.kind === 'move' && nx && nx.kind === 'cue') it.cueAfter = { start: nx.start, end: nx.end }; });
+  }
 
   // schedule every beat
   let start = 0, seed = 1;
@@ -1862,7 +1945,7 @@ function compileStory(story, vo = {}) {
         A.push({ t: t + slot + 0.4, type: 'cam', spec: { preset: 'restore' }, blend: 1.3 });
         slot += 0.6;
       }
-      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker });
+      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker, srcEnd: it.end, cueAfter: it.cueAfter || null, nextT: t + slot });
       A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
       if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
       squares.add(mv.from); squares.add(mv.to);
@@ -2089,6 +2172,11 @@ const wrapNear = (a, ref) => a + TAU * Math.round((ref - a) / TAU);
 
 function resolveShot(spec, nowMs) {
   if (spec.preset === 'restore') return camState.base ? resolveShot(camState.base, nowMs) : resolveShot({ preset: 'overview', squares: [] }, nowMs);
+  // an exact view saved from the studio: [%cam view tx ty tz distance phi theta (drift)]
+  if (spec.preset === 'view' && spec.nums && spec.nums.length >= 6) {
+    const [tx, ty, tz, r, phi, theta, drift = 0] = spec.nums;
+    return { fixed: { tx, ty, tz, r, phi }, theta: wrapNear(theta, camState.cur ? posePrevTheta() : theta), drift, t0: nowMs, fov: CAM_FOV };
+  }
   const P = SHOTS[spec.preset] || SHOTS.frame;
   let squares = spec.squares && spec.squares.length ? spec.squares : (P.all ? ['a1', 'h1', 'a8', 'h8'] : ['d4', 'e5']);
   if (P.all) squares = ['a1', 'h1', 'a8', 'h8'];
@@ -2111,6 +2199,7 @@ function resolveShot(spec, nowMs) {
 }
 function posePrevTheta() { return lastPose ? lastPose.theta : 0; }
 function shotPose(shot, nowMs) {
+  if (shot.fixed) return { ...shot.fixed, theta: shot.theta + shot.drift * (nowMs - shot.t0) / 1000, fov: shot.fov };
   const pts = shot.follow ? shot.follow.map((o) => [o.group.position.x, o.group.position.z]) : shot.pts;
   let cx = 0, cz = 0;
   for (const [x, z] of pts) { cx += x; cz += z; }
@@ -2138,7 +2227,8 @@ function setShot(spec, nowMs, blend, base) {
   camState.cur = shot;
 }
 function updateFilmCamera(nowMs) {
-  if (!camState.cur) return;
+  if (!camState.cur || (film.freeCam && !film.exporting)) return; // the studio's free camera has the wheel
+
   let p = shotPose(camState.cur, nowMs);
   if (camState.prev) {
     const k = clamp((nowMs - camState.blend0) / 1000 / camState.blendDur, 0, 1), e = ease(k);
@@ -2296,6 +2386,7 @@ const film = {
       while (this.acc >= FILM_DT && n++ < 4) { stepFilm(FILM_DT, true); this.acc -= FILM_DT; }
       if (this.t >= this.comp.duration) { this.playing = false; updateFilmUI(); }
     }
+    if (this.freeCam) filmControls.update();
     renderFilmFrame();
     updateFilmClock();
   },
@@ -2454,6 +2545,7 @@ async function exportFilm() {
   if (film.exporting) return;
   const prog = $('fProgress'), bar = prog.querySelector('i'), label = $('fProgText');
   film.playing = false; stopVO(); updateFilmUI();
+  if (film.freeCam) endFreeCam();
   film.exporting = true; film.cancel = false; prog.hidden = false; $('fExport').disabled = true;
   const status = (txt, k) => { label.textContent = txt; if (k != null) bar.style.width = (k * 100).toFixed(1) + '%'; };
   let output = null;
@@ -2530,7 +2622,7 @@ const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padSt
 function storyEntry(id, text, fileName = null) {
   let label = id;
   try { label = storyMeta(parseStory(text).headers).header; } catch (e) { /* shown when selected */ }
-  return { id, text, fileName, label: fileName ? `${label} (${fileName})` : label };
+  return { id, text, fileName, label: fileName ? `${label} (${fileName})` : label, savedText: text, original: text };
 }
 const STORIES = [...document.querySelectorAll('script[type="text/x-chess-story"]')].map((el) => storyEntry(el.id, el.textContent));
 let loadedCount = 0;
@@ -2554,8 +2646,9 @@ function loadStory(id) {
   story.headers.FilmHeader = meta.header; story.headers.FilmFile = meta.file;
   const comp = compileStory(story, film.vo);
   if (!comp.plies && !comp.beats.length) throw new Error('no moves found');
-  film.storyId = st.id; film.story = story;
+  film.storyId = st.id; film.story = story; film.compiledText = st.text;
   recompile();
+  if (film.editing) showStoryInEditor(st);
 }
 // Switches the studio to another story; voiceover clips belong to a story, so they are cleared.
 function switchStory(id) {
@@ -2646,6 +2739,7 @@ function enterFilm() {
 }
 function exitFilm() {
   if (!film.active || film.exporting) return;
+  setEditing(false);
   film.playing = false; stopVO();
   film.active = false; filmMode.active = false; filmMode.liveSfx = true; clock.virtual = false;
   clearGhosts(true); clearPuffs(); annots = []; annotDirty = true; updateAnnots(0); annotMesh.visible = false;
@@ -2684,6 +2778,226 @@ async function loadVoiceFiles(files) {
   recompile();
   seekFilm(Math.min(t, film.comp.duration - 0.01));
 }
+
+/* ------------------------------------------------------------------ *
+ *  Studio editor: live PGN editing, click-to-annotate, "use this view"
+ *  Every change is written into the story text, so Save .pgn keeps it.
+ * ------------------------------------------------------------------ */
+const filmText = $('fText');
+let compileTimer = 0, tool = null, toolColor = 'R', arrowFrom = null;
+const currentStory = () => STORIES.find((st) => st.id === film.storyId);
+const lineAt = (text, pos) => text.slice(0, pos).split('\n').length;
+const TOOL_NAMES = { csl: 'a circle', cal: 'an arrow', zone: 'a hatched zone', cross: 'a cross', tick: 'a tick', label: 'a label' };
+
+function edStatus(msg, err = false, pos = null) {
+  const el = $('fEdStatus');
+  el.textContent = msg; el.classList.toggle('err', err);
+  el.onclick = pos != null ? () => { filmText.focus(); filmText.setSelectionRange(pos, pos); } : null;
+  el.title = pos != null ? 'Click to jump to the problem' : '';
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const okStatus = () => edStatus(`✓ ${plural(film.comp.plies, 'move')} · ${plural(film.comp.beats.length, 'beat')} · ${fmtTime(film.comp.duration)}`);
+function toolHint(msg, err = false) { const el = $('fToolHint'); el.textContent = msg; el.style.color = err ? 'var(--red)' : ''; }
+function markDirty() {
+  const st = currentStory();
+  $('fDirty').hidden = !st || (film.editing ? filmText.value : st.text) === st.savedText;
+}
+function showStoryInEditor(st) {
+  if (filmText.dataset.story !== st.id || filmText.value !== st.text) { filmText.value = st.text; filmText.dataset.story = st.id; }
+  okStatus(); markDirty();
+}
+
+// Recompiles the film from the editor text, keeping the current position. On errors the preview keeps the last working version.
+function applyStoryText(text) {
+  const st = currentStory();
+  if (!st) return false;
+  if (text === film.compiledText) { okStatus(); markDirty(); return true; }
+  let story;
+  try {
+    story = parseStory(text);
+    const meta = storyMeta(story.headers);
+    story.headers.FilmHeader = meta.header; story.headers.FilmFile = meta.file;
+    if (!compileStory(story, film.vo).plies) throw storyError('no moves found', text.length);
+  } catch (e) {
+    edStatus(`Line ${lineAt(text, e.pos ?? text.length)}: ${e.message}. The preview keeps the last working version.`, true, e.pos ?? null);
+    markDirty();
+    return false;
+  }
+  st.text = text; st.label = storyEntry(st.id, text, st.fileName).label;
+  const opt = [...$('fStory').options].find((o) => o.value === st.id);
+  if (opt) opt.textContent = st.label;
+  film.story = story; film.compiledText = text;
+  const t = film.t;
+  recompile();
+  seekFilm(Math.min(t, film.comp.duration - 0.01));
+  okStatus(); markDirty();
+  return true;
+}
+filmText.addEventListener('input', () => { markDirty(); clearTimeout(compileTimer); compileTimer = setTimeout(() => applyStoryText(filmText.value), 450); });
+
+// Replaces text in the editor as an undoable edit (Ctrl+Z / Undo bring it back), then recompiles.
+function replaceStoryRange(start, end, insert) {
+  const panel = $('film'), keepScroll = panel.scrollTop; // focusing the text must not yank the preview out of view
+  filmText.focus({ preventScroll: true });
+  filmText.setSelectionRange(start, end);
+  const before = filmText.value;
+  let ok = false;
+  try { ok = document.execCommand('insertText', false, insert); } catch (e) { ok = false; }
+  if (!ok || filmText.value === before) filmText.setRangeText(insert, start, end, 'end');
+  panel.scrollTop = keepScroll;
+  clearTimeout(compileTimer);
+  return applyStoryText(filmText.value);
+}
+
+// Where a new mark belongs: right after the last move already shown in this beat, or the beat's opening comment.
+function insertionPoint() {
+  const b = film.comp.beats[film.beatIdx], lt = film.t - b.start + 1e-6;
+  let last = null;
+  for (const a of b.actions) if (a.type === 'move' && a.t <= lt) last = a;
+  if (last) return last.cueAfter ? { comment: last.cueAfter, showAt: b.start + last.nextT } : { at: last.srcEnd, showAt: b.start + last.nextT };
+  if (b.open) return { comment: b.open, showAt: b.start + LEAD };
+  return { at: b.firstMoveStart ?? film.compiledText.length, before: true, showAt: b.start + LEAD };
+}
+function upsertTag(inner, name, value, mode) {
+  const re = new RegExp(`\\[%${name}\\s+((?:[^\\]"]|"[^"]*")*)\\]`);
+  const m = inner.match(re);
+  if (m && mode === 'merge') {
+    const items = m[1].split(',').map((x) => x.trim()).filter(Boolean);
+    if (!items.includes(value)) items.push(value);
+    return inner.replace(re, `[%${name} ${items.join(',')}]`);
+  }
+  if (m && mode === 'replace') return inner.replace(re, `[%${name} ${value}]`);
+  const lead = inner.match(/^\s*/)[0];
+  return `${lead || ' '}[%${name} ${value}] ${inner.slice(lead.length)}`;
+}
+function writeTag(name, value, mode, showDelay = 0.9) {
+  if (filmText.value !== film.compiledText) { toolHint('Fix the story error first: marks are placed using the last working version.', true); return false; }
+  const ip = insertionPoint(), text = film.compiledText;
+  const ok = ip.comment
+    ? replaceStoryRange(ip.comment.start + 1, ip.comment.end - 1, upsertTag(text.slice(ip.comment.start + 1, ip.comment.end - 1), name, value, mode))
+    : replaceStoryRange(ip.at, ip.at, ip.before ? `{ [%${name} ${value}] } ` : ` { [%${name} ${value}] }`);
+  // jump to where the new mark has been drawn (or the new camera has settled), so it's visible straight away
+  if (ok && ip.showAt + showDelay > film.t) seekFilm(Math.min(ip.showAt + showDelay, film.comp.duration - 0.01));
+  return ok;
+}
+
+const pickRay = new THREE.Raycaster(), pickNdc = new THREE.Vector2();
+function squareAtCanvas(e) {
+  const r = compCanvas.getBoundingClientRect();
+  pickNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  pickRay.setFromCamera(pickNdc, camera);
+  const hit = pickRay.intersectObjects(pieces.filter((o) => o.square).map((o) => o.mesh), false)[0];
+  if (hit) return hit.object.userData.obj.square;
+  const p = new THREE.Vector3();
+  return pickRay.ray.intersectPlane(boardPlane, p) ? xzToSq(p.x, p.z) : null;
+}
+function annotate(sq) {
+  if (tool === 'cal') {
+    if (!arrowFrom) { arrowFrom = sq; toolHint(`Arrow from ${sq}: now click the square it points to.`); return; }
+    const from = arrowFrom; arrowFrom = null;
+    if (from === sq) { toolHint('Arrow cancelled. Click a start square.'); return; }
+    if (writeTag('cal', `${toolColor}${from}${sq}`, 'merge')) toolHint(`Added an arrow ${from} → ${sq}. Click a start square for another.`);
+    return;
+  }
+  if (tool === 'label') {
+    const text = $('fLabelText').value.trim().replace(/"/g, '”').replace(/[\]{}]/g, '');
+    if (!text) { toolHint('Type the label text first, then click a square.', true); $('fLabelText').focus(); return; }
+    if (writeTag('label', `${sq} "${text}"`, 'add')) toolHint(`Labelled ${sq} “${text}”.`);
+    return;
+  }
+  const value = tool === 'cross' || tool === 'tick' ? sq : `${toolColor}${sq}`;
+  if (writeTag(tool, value, 'merge')) toolHint(`Added ${TOOL_NAMES[tool]} on ${sq}.`);
+}
+function refreshTools() {
+  document.querySelectorAll('#fEditor .tool').forEach((b) => b.classList.toggle('on', b.dataset.tool === tool));
+  $('fLabelText').hidden = tool !== 'label';
+  document.body.classList.toggle('tooling', !!tool);
+  filmControls.enabled = film.editing && !tool;
+  if (!tool) toolHint('Marks are added at the current moment of the film, after the last move shown.');
+  else if (tool === 'cal') toolHint('Click the start square, then the square the arrow points to.');
+  else if (tool === 'label') toolHint('Type the label text, then click a square.');
+  else toolHint(`Click a square to add ${TOOL_NAMES[tool]}.`);
+}
+document.querySelectorAll('#fEditor .tool').forEach((b) => { b.onclick = () => { tool = tool === b.dataset.tool ? null : b.dataset.tool; arrowFrom = null; refreshTools(); }; });
+document.querySelectorAll('#fEditor .swatch').forEach((b) => {
+  b.onclick = () => {
+    toolColor = b.dataset.color;
+    document.querySelectorAll('#fEditor .swatch').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+  };
+});
+
+// Free camera: orbit / pan / zoom the preview, then save the view into the story.
+const filmControls = (() => {
+  // our listeners go first so a click with a tool never starts an orbit, and the orbit starts from the director's view
+  compCanvas.addEventListener('pointerdown', (e) => {
+    if (!film.editing || film.exporting) return;
+    if (tool) { const sq = squareAtCanvas(e); if (sq) annotate(sq); return; }
+    if (!film.freeCam) beginFreeCam();
+  });
+  compCanvas.addEventListener('wheel', () => { if (film.editing && !tool && !film.exporting && !film.freeCam) beginFreeCam(); }, { capture: true });
+  const c = new OrbitControls(camera, compCanvas);
+  c.enabled = false; c.enableDamping = true; c.dampingFactor = 0.1;
+  c.minDistance = 3; c.maxDistance = 40; c.maxPolarAngle = 1.25;
+  return c;
+})();
+function updateCamUI() {
+  const el = $('fCamState');
+  el.textContent = film.freeCam ? 'free: your view' : 'director';
+  el.classList.toggle('free', !!film.freeCam);
+  $('fUseView').disabled = $('fDirector').disabled = !film.freeCam;
+}
+function beginFreeCam() {
+  film.freeCam = true;
+  if (lastPose) filmControls.target.set(lastPose.tx, lastPose.ty, lastPose.tz);
+  filmControls.update();
+  updateCamUI();
+}
+function endFreeCam() {
+  film.freeCam = false;
+  updateFilmCamera(clock.t); renderFilmFrame();
+  updateCamUI();
+}
+$('fDirector').onclick = endFreeCam;
+$('fUseView').onclick = () => {
+  const t = filmControls.target, sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t));
+  const view = [t.x, t.y, t.z, sph.radius].map((n) => n.toFixed(2)).concat([sph.phi, sph.theta].map((n) => n.toFixed(3))).join(' ');
+  film.freeCam = false; updateCamUI();
+  if (writeTag('cam', `view ${view}`, 'replace', 1.5)) toolHint('Saved this view as the camera from this moment on.');
+};
+
+function setEditing(on) {
+  film.editing = on;
+  $('fEditor').hidden = !on;
+  $('fEdit').classList.toggle('on', on); $('fEdit').setAttribute('aria-pressed', String(on));
+  document.body.classList.toggle('editing', on);
+  if (on) showStoryInEditor(currentStory());
+  else { tool = null; arrowFrom = null; clearTimeout(compileTimer); if (film.freeCam) endFreeCam(); }
+  refreshTools(); updateCamUI();
+}
+// Esc steps back one level: arrow in progress → tool → free camera. Returns false when there was nothing to undo.
+function studioEscape() {
+  if (arrowFrom) { arrowFrom = null; refreshTools(); return true; }
+  if (tool) { tool = null; refreshTools(); return true; }
+  if (film.freeCam) { endFreeCam(); return true; }
+  return false;
+}
+$('fEdit').onclick = () => setEditing(!film.editing);
+$('fSave').onclick = () => {
+  const st = currentStory(), text = filmText.value;
+  download(new Blob([text], { type: 'application/x-chess-pgn' }), filmFileBase() + '.pgn');
+  st.savedText = text; markDirty();
+  edStatus(`Saved ${filmFileBase()}.pgn to your downloads${text !== film.compiledText ? ' (it still has an error to fix)' : ''}.`, text !== film.compiledText);
+};
+$('fRevert').onclick = () => {
+  const st = currentStory();
+  if (filmText.value === st.original) return;
+  replaceStoryRange(0, filmText.value.length, st.original);
+  edStatus('Reverted to the story as it was loaded. Undo brings your changes back.');
+};
+$('fUndo').onclick = () => { filmText.focus(); document.execCommand('undo'); };
+addEventListener('beforeunload', (e) => {
+  if (STORIES.some((st) => st.text !== st.savedText) || (film.editing && currentStory() && filmText.value !== currentStory().savedText)) { e.preventDefault(); e.returnValue = ''; }
+});
 
 $('bFilm').onclick = enterFilm;
 $('fExit').onclick = exitFilm;

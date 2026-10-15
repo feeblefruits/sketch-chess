@@ -32,13 +32,22 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 - **Voiceover**: "Narration script" copies and downloads one line per beat (`vo-01`, `vo-02`, …). Record or generate a clip per line, name it to match (`vo-03.mp3`), and drop the clips on the panel. Each beat stretches to fit its clip, and the clips are mixed into the export.
 - **Subtitles .srt** downloads captions timed to the film.
 
+### Editing in the studio
+
+**✎ Edit story** opens the story editor next to the preview. Everything you do there is written into the story's PGN text, so it all ends up in the file you save.
+
+- **Text**: edit captions, moves and tags; the preview recompiles as you type. If something doesn't parse, the editor names the line and the preview keeps the last working version.
+- **Mark the board**: pick Circle, Arrow, Zone, Cross, Tick or Label and a pencil colour, then click squares on the preview (an arrow takes two clicks). The mark is added at the current moment of the film, after the last move shown.
+- **Camera**: with no tool selected, drag the preview to orbit, right-drag to pan and scroll to zoom. **Use this view** saves that exact view as the camera from this moment on (`[%cam view …]`); **Back to director** discards it.
+- **Save .pgn** downloads the story, **Revert** returns to the version you loaded, and **Undo** (or Ctrl+Z in the text) steps back through every change, including marks and camera views. Esc steps out of a tool or the free camera.
+
 ### Writing a story
 
 A story is a PGN file: load it with **Load PGN…**, or embed it in `index.html` as a `<script type="text/x-chess-story" id="…">` block to make it a built-in choice in the dropdown. `[FilmHeader "…"]` and `[FilmFile "…"]` set the on-screen header and the export filename; otherwise they come from the White, Black, Event and Date tags. A comment with text opens a *beat*: it becomes a caption card and one narration line, and the moves after it play while it is on screen. Tags inside comments direct the film:
 
 | Tag | Effect |
 | --- | --- |
-| `[%cam preset squares…]` | Camera shot: `overview`, `top`, `frame`, `closeup`, `low`, `orbit`, `follow` (tracks the pieces on those squares), `profile` (looks along a line of squares). Add `b` to shoot from Black's side. Without one, the director frames the beat's moves and drops to a low angle for checks. |
+| `[%cam preset squares…]` | Camera shot: `overview`, `top`, `frame`, `closeup`, `low`, `orbit`, `follow` (tracks the pieces on those squares), `profile` (looks along a line of squares). Add `b` to shoot from Black's side. `[%cam view x y z distance phi theta]` holds an exact view (what **Use this view** writes). Without a camera tag, the director frames the beat's moves and drops to a low angle for checks. |
 | `[%cal Gd2d4,Rb6d4]` / `[%csl Rd5]` | Pencil arrows / circles that draw themselves on (G graphite, R red, B blue, Y highlighter) |
 | `[%zone Bd4]`, `[%trail Ga7a8]`, `[%cross c5]`, `[%tick e4]` | Hatched square, back-and-forth trail, scribbled-out square, tick |
 | `[%label d5 "isolated"]` | Handwritten label pinned to a square |
