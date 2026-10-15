@@ -142,7 +142,13 @@
     box-shadow: 0 0 0 2px var(--ink), 7px 9px 0 rgba(27, 26, 23, .14); background: var(--paper); }
   .film-panel { width: 340px; flex: none; padding: 14px 18px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
   .film-panel h2 { font-family: 'Caveat', cursive; font-size: 34px; margin: 0; line-height: 1; }
-  .ftitle { font-size: 17px; color: var(--ink-soft); margin-top: -4px; }
+  .fstory { flex-wrap: nowrap; }
+  #fStory { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 6px 8px; color: var(--ink); background: var(--paper-2);
+    border: 2px solid var(--ink); border-radius: 12px 4px 10px 5px; cursor: pointer; }
+  #fStory:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
+  #fLoad { flex: none; font-size: 16px; padding: 6px 10px; }
+  #fStoryNote:empty { display: none; }
+  #fStoryNote.err { color: var(--red); }
   .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .film-panel .btn { justify-content: center; }
   #fPlay svg { fill: currentColor; }
@@ -255,14 +261,19 @@
   <div class="film-stage"></div>
   <aside class="film-panel sketch">
     <h2>Film studio</h2>
-    <div id="fTitle" class="ftitle"></div>
+    <div class="frow fstory">
+      <select id="fStory" aria-label="Story to film"></select>
+      <button class="btn sketch" id="fLoad" title="Load a game or annotated story from a .pgn file">Load PGN…</button>
+      <input type="file" id="fPgnInput" accept=".pgn,.txt" hidden>
+    </div>
+    <div id="fStoryNote" class="fnote"></div>
     <div class="frow">
       <button class="btn sketch" id="fPlay" title="Play / pause (Space)"><svg viewBox="0 0 24 24"><path d="M7 4.5 19.5 12 7 19.5z"/></svg><span class="lbl">Play</span></button>
       <span id="fTime">0:00 / 0:00</span>
     </div>
     <input type="range" id="fScrub" min="0" max="100" step="1" value="0" aria-label="Film position">
     <ol id="fBeats" class="fbeats" title="Click a beat to jump to it (← / → keys)"></ol>
-    <label id="fDrop" class="fdrop">Drop voiceover clips here, or click to choose<br><small>one per beat, named vo-01.mp3, vo-02.mp3 …</small>
+    <label id="fDrop" class="fdrop">Drop voiceover clips (or a .pgn) here, or click to choose clips<br><small>one per beat, named vo-01.mp3, vo-02.mp3 …</small>
       <input type="file" id="fVoInput" multiple accept="audio/*"></label>
     <div id="fVoStatus" class="fnote">No voiceover loaded: captions and sound effects only.</div>
     <div class="frow">
@@ -991,6 +1002,7 @@ function putMarker(kind, sq) {
 }
 
 const puffs = [];
+function clearPuffs() { for (const p of puffs) p.visible = false; }
 function spawnPuff(x, z) {
   let p = puffs.find((q) => !q.visible);
   if (!p) {
@@ -1576,7 +1588,8 @@ function updateWorld(dt, now) {
 
   for (const pf of puffs) if (pf.visible) {
     const k = (now - pf.userData.t0) / 380;
-    if (k >= 1) { pf.visible = false; continue; }
+    // outside 0..1 (e.g. spawned on another clock, or "in the future" after a film seeks back) → gone
+    if (!(k >= 0 && k < 1)) { pf.visible = false; continue; }
     const s = 0.7 + k * 0.6; pf.scale.set(s, 1, s); pf.material.opacity = 1 - k;
   }
 }
@@ -1664,8 +1677,12 @@ function parseComment(raw) {
   return { text, tags };
 }
 function parseStory(src) {
-  const headers = {};
-  const body = src.replace(/^\s*\[(\w+)\s+"([^"]*)"\]\s*$/gm, (m, k, v) => { headers[k] = v; return ''; });
+  const headers = {}, warnings = [];
+  const body = restOfLineComments(src
+    .replace(/^\s*\[(\w+)\s+"([^"]*)"\]\s*$/gm, (m, k, v) => { headers[k] = v; return ''; })
+    .replace(/^%.*$/gm, ''))                        // PGN escape lines
+    .replace(/\be\.p\./g, '')
+    .replace(/\b0-0-0\b/g, 'O-O-O').replace(/\b0-0(?![-\d])/g, 'O-O');
   const re = /\{([^}]*)\}|(\()|(\))|\$(\d+)|(\d+\.(?:\.\.)?)|(1-0|0-1|1\/2-1\/2|\*)|((?:[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O-O|O-O)[+#]?)(!!|!\?|\?!|!|\?\?|\?)?|(\S+)/g;
   const root = [], stack = [root];
   let m;
@@ -1680,10 +1697,37 @@ function parseStory(src) {
     else if (m[4]) { const prev = [...cur].reverse().find((n) => n.type === 'move'); if (prev) prev.nag = NAG[m[4]] || prev.nag; }
     else if (m[5] || m[6]) { if (m[6]) headers.Result = headers.Result || m[6]; }
     else if (m[7]) cur.push({ type: 'move', san: m[7], nag: m[8] || '', vars: [] });
-    else throw new Error(`Unexpected token "${m[9]}" in story`);
+    else if (/[a-h][1-8]/.test(m[9])) throw new Error(`Couldn't read the move "${m[9]}"`);
+    else warnings.push(m[9]); // evaluation symbols like +=, ±, N, etc.
   }
   if (stack.length !== 1) throw new Error('Unclosed variation');
-  return { headers, root };
+  return { headers, root, warnings };
+}
+// PGN ";" comments run to the end of the line; turn them into {braces}, leaving ";" inside {comments} alone.
+function restOfLineComments(s) {
+  let out = '', depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') depth = Math.max(0, depth - 1);
+    else if (ch === ';' && !depth) {
+      const end = s.indexOf('\n', i);
+      const text = s.slice(i + 1, end < 0 ? s.length : end).replace(/[{}]/g, '');
+      out += `{${text}}`; i = end < 0 ? s.length : end - 1; continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+// Fills in the on-screen header and the export filename when a PGN doesn't set them.
+function storyMeta(h) {
+  const last = (n) => (n || '?').split(',')[0].trim();
+  const year = (h.Date || '').slice(0, 4).replace(/\?/g, '');
+  const event = h.Event && h.Event !== '?' ? h.Event : '';
+  const header = h.FilmHeader || [`${last(h.White)} – ${last(h.Black)}`, [event, year].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+  const file = h.FilmFile || [last(h.White), last(h.Black), year].filter((x) => x && x !== '?').join('-')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\w-]+/g, '') || 'sketch-chess-film';
+  return { header, file };
 }
 
 /* ------------------------------------------------------------------ *
@@ -2347,7 +2391,7 @@ function seekFilm(t) {
   wiggleTime = b.start; boilStep = -1;
   chess.load(b.fen);
   for (const o of pieces) { o.think = null; o.wob = 0; }
-  clearGhosts(true);
+  clearGhosts(true); clearPuffs();
   sync({ instant: true });
   refreshMarkers();
   annots = []; annotDirty = true; film.labels = [];
@@ -2359,6 +2403,8 @@ function seekFilm(t) {
   camState.prev = null;
   updateFilmCamera(clock.t);
   while (film.t < t - 1e-6) stepFilm(Math.min(FILM_DT, t - film.t), false);
+  // settle shadows, ghosts and effects on the new positions, so a paused preview (and an export's first frame) is right
+  updateWorld(0, clock.t); updateGhosts(clock.t); updateFilmCamera(clock.t);
   if (film.playing) playVO(beats[film.beatIdx], film.t - beats[film.beatIdx].start);
   renderFilmFrame();
   updateFilmClock();
@@ -2478,14 +2524,75 @@ function subtitles() {
 /* ------------------------------------------------------------------ *
  *  Film UI: enter / exit, panel, scrubber, voiceover drop
  * ------------------------------------------------------------------ */
-const STORIES = [...document.querySelectorAll('script[type="text/x-chess-story"]')].map((el) => ({ id: el.id, text: el.textContent }));
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+// Built-in stories come from <script type="text/x-chess-story"> blocks; loaded PGN files are added for the session.
+function storyEntry(id, text, fileName = null) {
+  let label = id;
+  try { label = storyMeta(parseStory(text).headers).header; } catch (e) { /* shown when selected */ }
+  return { id, text, fileName, label: fileName ? `${label} (${fileName})` : label };
+}
+const STORIES = [...document.querySelectorAll('script[type="text/x-chess-story"]')].map((el) => storyEntry(el.id, el.textContent));
+let loadedCount = 0;
+
+function populateStories() {
+  const sel = $('fStory');
+  sel.innerHTML = '';
+  for (const st of STORIES) {
+    const o = document.createElement('option');
+    o.value = st.id; o.textContent = st.label;
+    sel.appendChild(o);
+  }
+  sel.value = film.storyId || STORIES[0].id;
+}
+function storyNote(msg, err = false) { const n = $('fStoryNote'); n.textContent = msg; n.classList.toggle('err', err); }
 
 function loadStory(id) {
   const st = STORIES.find((s) => s.id === id) || STORIES[0];
-  film.storyId = st.id;
-  film.story = parseStory(st.text);
+  const story = parseStory(st.text);
+  const meta = storyMeta(story.headers);
+  story.headers.FilmHeader = meta.header; story.headers.FilmFile = meta.file;
+  const comp = compileStory(story, film.vo);
+  if (!comp.plies && !comp.beats.length) throw new Error('no moves found');
+  film.storyId = st.id; film.story = story;
   recompile();
+}
+// Switches the studio to another story; voiceover clips belong to a story, so they are cleared.
+function switchStory(id) {
+  if (film.exporting) { $('fStory').value = film.storyId; return false; }
+  const prev = film.storyId;
+  film.playing = false; stopVO(); updateFilmUI();
+  const savedVO = film.vo;
+  if (id !== prev) film.vo = {};
+  try { loadStory(id); } catch (e) {
+    film.vo = savedVO;
+    storyNote('Story error: ' + e.message, true);
+    $('fStory').value = prev;
+    return false;
+  }
+  $('fStory').value = film.storyId;
+  if (id !== prev) $('fVoStatus').textContent = Object.keys(savedVO).length ? 'Voiceover clips cleared for the new story.' : 'No voiceover loaded: captions and sound effects only.';
+  storyNote('');
+  seekFilm(0);
+  return true;
+}
+async function loadPgnFile(file) {
+  let text = await file.text();
+  // a .pgn can hold many games; film the first one
+  const starts = [...text.matchAll(/^\s*\[Event\s/gm)].map((m) => m.index);
+  if (starts.length > 1) text = text.slice(starts[0], starts[1]);
+  let story, comp;
+  try { story = parseStory(text); comp = compileStory(story); } catch (e) { storyNote(`Couldn't load ${file.name}: ${e.message}`, true); return; }
+  if (!comp.plies) { storyNote(`${file.name} has no moves to film.`, true); return; }
+  // loading the same file again replaces it, so you can edit a story and reload it
+  let st = STORIES.find((x) => x.fileName === file.name);
+  if (st) Object.assign(st, storyEntry(st.id, text, file.name));
+  else { st = storyEntry('file-' + (++loadedCount), text, file.name); STORIES.push(st); }
+  populateStories();
+  if (!switchStory(st.id)) return; // reloading the current file keeps its voiceover clips
+  const captions = comp.beats.filter((b) => b.caption).length;
+  storyNote(`Loaded ${file.name}: ${comp.plies} moves, ${captions ? captions + ' captions' : 'no captions (add {comments} to narrate it)'}`
+    + `${starts.length > 1 ? ` · first of ${starts.length} games` : ''}${story.warnings.length ? ` · ignored: ${story.warnings.slice(0, 4).join(' ')}` : ''}.`);
 }
 function recompile() {
   film.comp = compileStory(film.story, film.vo);
@@ -2498,7 +2605,6 @@ function recompile() {
     li.onclick = () => seekFilm(b.start);
     list.appendChild(li);
   });
-  $('fTitle').textContent = film.comp.headers.FilmHeader || film.storyId;
   $('fScrub').max = String(Math.round(film.comp.duration * 100));
 }
 function highlightBeat(i) { [...$('fBeats').children].forEach((li, j) => li.classList.toggle('on', j === i)); }
@@ -2534,6 +2640,7 @@ function enterFilm() {
   annotMesh.visible = true;
   if (!grainPattern) buildGrain();
   try { loadStory(film.storyId || STORIES[0].id); } catch (e) { alert('Story error: ' + e.message); exitFilm(); return; }
+  populateStories();
   film.playing = false; updateFilmUI();
   seekFilm(0);
 }
@@ -2541,7 +2648,7 @@ function exitFilm() {
   if (!film.active || film.exporting) return;
   film.playing = false; stopVO();
   film.active = false; filmMode.active = false; filmMode.liveSfx = true; clock.virtual = false;
-  clearGhosts(true); annots = []; annotDirty = true; updateAnnots(0); annotMesh.visible = false;
+  clearGhosts(true); clearPuffs(); annots = []; annotDirty = true; updateAnnots(0); annotMesh.visible = false;
   film.labels = []; film.recap = null;
   for (const o of pieces) { o.think = null; o.wob = 0; }
   document.body.classList.remove('filming');
@@ -2602,7 +2709,16 @@ $('fVoInput').addEventListener('change', (e) => loadVoiceFiles([...e.target.file
 const drop = $('fDrop');
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', (e) => loadVoiceFiles([...e.dataTransfer.files]));
+drop.addEventListener('drop', (e) => {
+  const files = [...e.dataTransfer.files];
+  const pgn = files.find((f) => /\.(pgn|txt)$/i.test(f.name));
+  if (pgn) loadPgnFile(pgn);
+  const audio = files.filter((f) => f !== pgn);
+  if (audio.length) loadVoiceFiles(audio);
+});
+$('fStory').addEventListener('change', (e) => switchStory(e.target.value));
+$('fLoad').onclick = () => $('fPgnInput').click();
+$('fPgnInput').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) loadPgnFile(f); e.target.value = ''; });
 $('film').querySelector('.film-stage').appendChild(compCanvas);
 
 /* ------------------------------------------------------------------ *

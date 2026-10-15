@@ -26,6 +26,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 
 The **Film** button turns an annotated game into a narrated, auto-directed vertical video (1080×1920, 60 fps MP4). It ships with one story: the endgame of **Flohr vs Vidmar, Nottingham 1936**.
 
+- **Pick a story** from the dropdown, or **Load PGN…** (or drop a `.pgn` on the panel) to film any game. Plain games from Lichess or chessgames.com work as they are; add `{comments}` and tags to narrate and direct them. A file with several games films the first one, and loading the same file again replaces it, so you can edit a story in a text editor and reload. Loaded files last for the session; the app doesn't store them.
 - **Preview**: Play/Pause (Space), scrub, or click a beat (← / → jump between beats). What you preview is exactly what gets recorded.
 - **Export MP4** renders frame by frame on a virtual clock, so playback speed doesn't matter, and encodes H.264 + AAC in the browser with WebCodecs ([Mediabunny](https://mediabunny.dev)). Use a recent Chrome or Edge.
 - **Voiceover**: "Narration script" copies and downloads one line per beat (`vo-01`, `vo-02`, …). Record or generate a clip per line, name it to match (`vo-03.mp3`), and drop the clips on the panel. Each beat stretches to fit its clip, and the clips are mixed into the export.
@@ -33,7 +34,7 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 
 ### Writing a story
 
-Stories are PGN embedded in `index.html` as `<script type="text/x-chess-story">`. A comment with text opens a *beat*: it becomes a caption card and one narration line, and the moves after it play while it is on screen. Tags inside comments direct the film:
+A story is a PGN file: load it with **Load PGN…**, or embed it in `index.html` as a `<script type="text/x-chess-story" id="…">` block to make it a built-in choice in the dropdown. `[FilmHeader "…"]` and `[FilmFile "…"]` set the on-screen header and the export filename; otherwise they come from the White, Black, Event and Date tags. A comment with text opens a *beat*: it becomes a caption card and one narration line, and the moves after it play while it is on screen. Tags inside comments direct the film:
 
 | Tag | Effect |
 | --- | --- |
