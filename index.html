@@ -131,6 +131,47 @@
   #loading svg path { stroke-dasharray: 260; stroke-dashoffset: 260; animation: draw 1.2s ease-in-out infinite alternate; }
   #loading small { font-family: 'Patrick Hand', cursive; font-size: 17px; color: var(--ink-soft); max-width: 80vw; text-align: center; }
 
+  /* film studio */
+  body.filming #card, body.filming #log, body.filming #toolbar, body.filming #hint, body.filming #banner,
+  body.filming .vignette, body.filming .grain { display: none; }
+  body.filming #stage { visibility: hidden; }
+  #film { position: fixed; inset: 0; z-index: 15; display: none; gap: 18px; padding: 14px; background: var(--paper); }
+  body.filming #film { display: flex; }
+  .film-stage { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  #filmCanvas { height: 100%; width: auto; max-width: 100%; object-fit: contain; aspect-ratio: 9 / 16;
+    box-shadow: 0 0 0 2px var(--ink), 7px 9px 0 rgba(27, 26, 23, .14); background: var(--paper); }
+  .film-panel { width: 340px; flex: none; padding: 14px 18px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .film-panel h2 { font-family: 'Caveat', cursive; font-size: 34px; margin: 0; line-height: 1; }
+  .ftitle { font-size: 17px; color: var(--ink-soft); margin-top: -4px; }
+  .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .film-panel .btn { justify-content: center; }
+  #fPlay svg { fill: currentColor; }
+  #fTime { font-size: 19px; margin-left: 4px; }
+  #fScrub { width: 100%; accent-color: var(--ink); }
+  .fbeats { margin: 0; padding: 0; list-style: none; font-size: 15px; line-height: 1.25; max-height: 34vh; overflow-y: auto;
+    border-top: 1.5px dashed var(--graphite); border-bottom: 1.5px dashed var(--graphite); }
+  .fbeats li { padding: 5px 4px; cursor: pointer; border-bottom: 1px solid rgba(43, 86, 184, .15); }
+  .fbeats li:hover { background: rgba(27, 26, 23, .05); }
+  .fbeats li.on { background: linear-gradient(transparent 8%, var(--hl) 8% 92%, transparent 92%); }
+  .fbeats b { font-weight: 400; color: var(--blue); }
+  .fbeats .t { color: var(--graphite); font-size: 13px; }
+  .fbeats em { font-family: 'Caveat', cursive; font-size: 19px; font-style: normal; font-weight: 700; }
+  .fbeats .vo { color: var(--red); }
+  .fdrop { display: block; text-align: center; padding: 10px; border: 2px dashed var(--graphite); border-radius: 10px 4px 12px 5px; cursor: pointer; font-size: 16px; }
+  .fdrop small { color: var(--ink-soft); }
+  .fdrop.over { background: var(--hl); }
+  .fdrop input { display: none; }
+  .fnote { font-size: 14px; color: var(--ink-soft); }
+  #fProgress { font-size: 14px; color: var(--ink-soft); }
+  .fbar { height: 10px; border: 1.5px solid var(--ink); border-radius: 6px 2px 7px 3px; margin-bottom: 6px; overflow: hidden; }
+  .fbar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(-55deg, var(--ink) 0 2px, transparent 2px 6px); }
+  #fCancel { font-size: 14px; padding: 3px 10px; margin-top: 4px; }
+  @media (max-width: 760px) {
+    #film { flex-direction: column; overflow-y: auto; }
+    .film-stage { flex: none; height: 64vh; }
+    .film-panel { width: auto; }
+  }
+
   @media (max-width: 760px) {
     #card { padding: 6px 12px 8px; min-width: 0; top: 10px; left: 10px; }
     #card h1 { font-size: 26px; }
@@ -187,6 +228,7 @@
   <button class="btn sketch" id="bFlip" title="Flip board (F)"><svg viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></svg><span class="lbl">Flip</span></button>
   <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
   <button class="btn sketch" id="bWiggle" title="Toggle line wiggle"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
+  <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
   <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
 </nav>
 
@@ -209,18 +251,124 @@
   </div>
 </div>
 
+<div id="film" aria-hidden="true">
+  <div class="film-stage"></div>
+  <aside class="film-panel sketch">
+    <h2>Film studio</h2>
+    <div id="fTitle" class="ftitle"></div>
+    <div class="frow">
+      <button class="btn sketch" id="fPlay" title="Play / pause (Space)"><svg viewBox="0 0 24 24"><path d="M7 4.5 19.5 12 7 19.5z"/></svg><span class="lbl">Play</span></button>
+      <span id="fTime">0:00 / 0:00</span>
+    </div>
+    <input type="range" id="fScrub" min="0" max="100" step="1" value="0" aria-label="Film position">
+    <ol id="fBeats" class="fbeats" title="Click a beat to jump to it (← / → keys)"></ol>
+    <label id="fDrop" class="fdrop">Drop voiceover clips here, or click to choose<br><small>one per beat, named vo-01.mp3, vo-02.mp3 …</small>
+      <input type="file" id="fVoInput" multiple accept="audio/*"></label>
+    <div id="fVoStatus" class="fnote">No voiceover loaded: captions and sound effects only.</div>
+    <div class="frow">
+      <button class="btn sketch" id="fScript" title="Copy + download the narration script">Narration script</button>
+      <button class="btn sketch" id="fSrt" title="Download subtitles">Subtitles .srt</button>
+    </div>
+    <button class="btn sketch" id="fExport">Export MP4 · 1080×1920</button>
+    <div id="fProgress" hidden><div class="fbar"><i></i></div><span id="fProgText"></span> <button class="btn sketch" id="fCancel">Cancel</button></div>
+    <button class="btn sketch" id="fExit" title="Back to the game (Esc)">Exit film</button>
+  </aside>
+</div>
+
 <div id="loading">
   <span id="loadText">Sharpening pencils&hellip;</span>
   <svg viewBox="0 0 120 30"><path d="M4 18 C 20 6, 34 26, 50 14 S 80 6, 96 16 S 112 20, 116 12" fill="none" stroke="#1b1a17" stroke-width="3" stroke-linecap="round"/></svg>
   <small id="loadErr"></small>
 </div>
 
+<!-- Film stories: annotated PGN. A comment with text opens a "beat" (caption + voiceover line);
+     [%tags] direct the camera and the pencil annotations. See the film section in the script for the full list. -->
+<script type="text/x-chess-story" id="flohr-vidmar-1936">
+[Event "Nottingham"]
+[Site "Nottingham ENG"]
+[Date "1936.08.20"]
+[Round "9"]
+[White "Flohr, Salo"]
+[Black "Vidmar, Milan"]
+[Result "1-0"]
+[ECO "D62"]
+[FilmHeader "Flohr – Vidmar · Nottingham 1936"]
+[FilmFile "flohr-vidmar-1936"]
+
+{ [%title "Nottingham, 1936"] [%cam orbit a1 h1 a8 h8] [%hold 1.5]
+  Salo Flohr has White against Milan Vidmar. Watch how a small edge becomes a win, one patient step at a time. }
+
+{ [%timelapse 0.3] [%cam top]
+  The opening is a Queen's Gambit. We skip ahead through twenty-four moves of manoeuvring. }
+1. c4 e6 2. Nc3 d5 3. d4 Nf6 4. Bg5 Be7 5. e3 O-O 6. Nf3 Nbd7 7. Qc2 c5 8. cxd5 Nxd5
+9. Bxe7 Qxe7 10. Nxd5 exd5 { [%csl Rd5] [%label d5 "isolated"] } 11. Bd3 g6 12. dxc5 Nxc5
+13. O-O Bg4 14. Nd4 Rac8 15. Qd2 a6 16. Bc2 Qg5 17. f3 Bd7 18. Rfe1 Rfd8 19. Rad1 Qf6
+20. Bb3 Ba4 21. Bxa4 Nxa4 22. Rc1 Nc5 23. Red1 Qb6 24. Ne2 Nd7
+
+{ [%title "The queen trade"] [%cam closeup d2 d4 b6] [%cal Gd2d4,Rb6d4]
+  Flohr offers to trade queens. With fewer pieces left, Black's isolated d-pawn becomes a long-term target. }
+25. Qd4! Qxd4 26. Nxd4 { [%csl Rd5] }
+
+{ [%cam frame f1 f8 c1 c8 d4 e5]
+  Both sides tidy up and bring their kings towards the centre. In an endgame the king becomes a fighting piece. }
+26... Ne5 27. b3 Kf8 28. Kf1 Rxc1 29. Rxc1 Nc6
+
+{ [%title "A fork in the road"] [%cam closeup c6 b7 c8 c3]
+  White swaps knights on c6. The natural recapture 30…bxc6? would drop a pawn to 31.Rxc6, so Vidmar plays 30…Rc8 first. }
+30. Nxc6 Rc8 (30... bxc6? 31. Rxc6)
+
+{ [%cam closeup c5 c6 a6 d5 c8] [%think c1]
+  31.Rc5! keeps the white rook active. After 31…bxc6 Black is left with three weak pawns: a6, c6 and d5. }
+31. Rc5! bxc6 { [%csl Ra6,Rc6,Rd5] [%label c6 "weak pawns"] }
+
+{ [%cam follow f1 f8]
+  The kings race to the middle of the board. }
+32. Ke2 Ke7 33. Kd3 Kd6
+
+{ [%title "Target: a6"] [%cam profile a5 a8]
+  The rook swings to a5 and hits the a6 pawn. Black's rook has to guard it from a8, a purely passive job. }
+34. Ra5 Ra8 { [%csl Ra6] [%label a8 "passive"] }
+
+{ [%cam frame d4 c5 b4 a3 f5 d6] [%zone Bd4]
+  The white king settles on d4, in front of Black's d-pawn. Then b4 rules out the freeing …c5, and Black can only shuffle his rook. }
+35. Kd4 f5 36. b4 { [%cross c5] } Rb8 37. a3 Ra8 { [%trail Ga8b8] }
+
+{ [%title "The breakthrough"] [%cam low e3 e4 f5 d5] [%cal Ge3e4]
+  With 38.e4! Flohr opens the centre. Material stays level, but White's king is now active and Black's a- and c-pawns are weak. }
+38. e4! fxe4 39. fxe4 dxe4 40. Kxe4
+
+{ [%cam frame g4 h5 g5 h6 f4 e6]
+  The king turns to the kingside. h4–h5 fixes Black's pawns, and h6 becomes a target. }
+40... Ra7 41. Kf4 h6 42. h4 Ke6 43. Kg4 Ra8 44. h5 g5 45. g3 { [%csl Rh6,Rg5] [%label h6 "target"] }
+
+{ [%cam overview] [%speed 1.7] [%trail Ga7a8]
+  Vidmar can only wait with his rook. Flohr is in no hurry: his king probes, and comes back. }
+45... Ra7 46. Kf3 Ra8 47. Ke4 Ra7 48. Kd4 Kd6 49. Ke4 Ke6
+
+{ [%title "The rook switch"] [%cam follow a5 e6]
+  Now 50.Re5+ drives the black king back, and the rook heads for the eighth rank to attack from behind. }
+50. Re5+! Kd6 51. Re8
+
+{ [%cam frame c5 c8 d8 b6 c6 e4]
+  Vidmar tries for counterplay with …c5. Two checks later, the c-pawn falls. }
+51... c5 52. Rd8+ Kc6 53. Rc8+ Kb6 54. Rxc5
+
+{ [%title "King and rook together"] [%cam orbit f5 f6 h6 e4]
+  Black's rook finally gets active, but the white king marches up the board. 58.Rf6 blocks the check, and Black's kingside pawns can't be held. Vidmar resigns. }
+54... Rh7 55. Re5 Kc6 56. Re6+ Kb5 57. Kf5 Rf7+ 58. Rf6 { [%csl Rh6,Rg5] }
+
+{ [%cam frame b4 f5 f7 h6 a6 b5 g3] [%recap "Trade queens|Fix the weak pawns|Activate the king|Break through with e4|Switch the rook"]
+  1–0. A model of Flohr’s endgame technique. [%hold 2.5] }
+1-0
+</script>
+
 <script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-    "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/esm/chess.js"
+    "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/esm/chess.js",
+    "mediabunny": "https://cdn.jsdelivr.net/npm/mediabunny@1.61.5/dist/bundles/mediabunny.min.mjs"
   }
 }
 </script>
@@ -270,6 +418,11 @@ let rand = mulberry32(7);
 const rj = (a) => (rand() - 0.5) * 2 * a;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const ease = (k) => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+
+// Time source: real time for play, a virtual clock that the film player/recorder steps frame by frame.
+const clock = { virtual: false, t: 0, now() { return this.virtual ? this.t : performance.now(); } };
+// Shared with the film section: while active, move timing is fixed so films render identically every time.
+const filmMode = { active: false, moveDur: 0.6, liveSfx: true };
 
 const sqToXZ = (sq) => ({ x: FILES.indexOf(sq[0]) - 3.5, z: 3.5 - (parseInt(sq[1], 10) - 1) });
 const xzToSq = (x, z) => {
@@ -833,7 +986,7 @@ function putMarker(kind, sq) {
   const { x, z } = sqToXZ(sq);
   const [y, ro] = MARKER_LAYER[kind];
   m.position.set(x, y, z); m.renderOrder = ro;
-  m.userData.kind = kind; m.material.map = markerTex[kind][boilStep % VARIANTS]; m.material.needsUpdate = true;
+  m.userData.kind = kind; m.material.map = markerTex[kind][((boilStep % VARIANTS) + VARIANTS) % VARIANTS]; m.material.needsUpdate = true;
   m.visible = true;
 }
 
@@ -844,8 +997,8 @@ function spawnPuff(x, z) {
     p = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ map: markerTex.puff[0], transparent: true, depthWrite: false }));
     p.renderOrder = 6; scene.add(p); puffs.push(p);
   }
-  p.material.map = markerTex.puff[(Math.random() * VARIANTS) | 0];
-  p.position.set(x, 0.01, z); p.rotation.y = Math.random() * TAU; p.visible = true; p.userData.t0 = performance.now();
+  p.material.map = markerTex.puff[(rand() * VARIANTS) | 0];
+  p.position.set(x, 0.01, z); p.rotation.y = rand() * TAU; p.visible = true; p.userData.t0 = clock.now();
 }
 
 /* ------------------------------------------------------------------ *
@@ -890,14 +1043,20 @@ function trayPos(color, idx) {
     : new THREE.Vector3(-5.45 - col * 0.72, TABLE_Y, -3.35 + row * 0.78);
 }
 
-function sendTo(o, dest, scale, { delay = 0, capture = false } = {}) {
+function sendTo(o, dest, scale, { delay = 0, capture = false, instant = false } = {}) {
   const from = o.group.position.clone();
   const d = from.distanceTo(dest);
   o.rest.copy(dest);
+  if (instant) {
+    o.tween = null; o.group.position.copy(dest); o.group.rotation.x = o.group.rotation.z = 0;
+    o.scale = o.baseScale = scale; o.lift = 0; o.squash = o.pop = 0;
+    return;
+  }
   if (d < 0.02 && Math.abs(o.scale - scale) < 0.01 && !o.tween) { o.baseScale = scale; return; }
-  const dur = capture ? 0.75 : 0.3 + Math.min(d, 9) * 0.045;
+  let dur = capture ? 0.75 : 0.3 + Math.min(d, 9) * 0.045;
+  if (filmMode.active) dur = filmMode.moveDur * (capture ? 1.4 : 1);
   const h = capture ? 1.3 : (o.type === 'n' ? 0.7 : 0.3) + Math.min(d, 9) * 0.05;
-  o.tween = { from, to: dest.clone(), fromScale: o.scale, toScale: scale, t0: performance.now() + delay * 1000, dur, h, capture, started: false };
+  o.tween = { from, to: dest.clone(), fromScale: o.scale, toScale: scale, t0: clock.now() + delay * 1000, dur, h, capture, started: false };
   o.baseScale = scale;
 }
 
@@ -907,7 +1066,7 @@ function sendTo(o, dest, scale, { delay = 0, capture = false } = {}) {
 const chess = new Chess();
 let redoStack = [];
 
-function sync() {
+function sync({ instant = false } = {}) {
   const target = [];
   for (const row of chess.board()) for (const c of row) if (c) target.push(c);
   const used = new Set(), assigned = new Map(), remaining = [];
@@ -936,13 +1095,14 @@ function sync() {
     const { x, z } = sqToXZ(t.square);
     if (o.type !== t.type) { o.type = t.type; o.needsRebuild = true; }
     o.square = t.square;
-    sendTo(o, new THREE.Vector3(x, 0, z), 1);
+    sendTo(o, new THREE.Vector3(x, 0, z), 1, { instant });
   }
   const tray = { w: [], b: [] };
   for (const o of pieces) if (!used.has(o)) { o._captured = !!o.square; o.square = null; tray[o.color].push(o); }
   for (const c of ['w', 'b']) {
     tray[c].sort((a, b) => VALUE[b.type] - VALUE[a.type]);
-    tray[c].forEach((o, i) => sendTo(o, trayPos(c, i), 0.72, { delay: o._captured ? 0.3 : 0, capture: o._captured }));
+    const capDelay = filmMode.active ? filmMode.moveDur * 0.55 : 0.3;
+    tray[c].forEach((o, i) => sendTo(o, trayPos(c, i), 0.72, { delay: o._captured ? capDelay : 0, capture: o._captured, instant }));
   }
 }
 
@@ -950,29 +1110,34 @@ function sync() {
  *  Sound: tiny synthesized pencil taps & scratches
  * ------------------------------------------------------------------ */
 let actx = null, soundOn = true;
-function sfx(kind) {
-  if (!soundOn) return;
-  try {
-    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
-    if (actx.state === 'suspended') actx.resume();
-    const t = actx.currentTime;
-    const len = kind === 'capture' ? 0.22 : kind === 'pick' ? 0.04 : 0.08;
-    const buf = actx.createBuffer(1, Math.ceil(actx.sampleRate * len), actx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, kind === 'capture' ? 1.2 : 3);
-    const src = actx.createBufferSource(); src.buffer = buf;
-    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
-    bp.frequency.setValueAtTime(kind === 'capture' ? 2600 : kind === 'pick' ? 4200 : 1500, t);
-    if (kind === 'capture') bp.frequency.exponentialRampToValueAtTime(900, t + len);
-    const g = actx.createGain(); g.gain.value = kind === 'pick' ? 0.12 : 0.35;
-    src.connect(bp).connect(g).connect(actx.destination); src.start(t);
-    if (kind === 'place') {
-      const osc = actx.createOscillator(), og = actx.createGain();
-      osc.frequency.setValueAtTime(190, t); osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
-      og.gain.setValueAtTime(0.35, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-      osc.connect(og).connect(actx.destination); osc.start(t); osc.stop(t + 0.12);
-    }
-  } catch (e) { /* audio is optional */ }
+function audioCtx() {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+// Synthesizes one effect into any audio context (live, or offline when a film is exported).
+function synth(ctx, dest, t, kind, gain = 1) {
+  const len = kind === 'capture' ? 0.22 : kind === 'pick' ? 0.04 : 0.08;
+  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, kind === 'capture' ? 1.2 : 3);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(kind === 'capture' ? 2600 : kind === 'pick' ? 4200 : 1500, t);
+  if (kind === 'capture') bp.frequency.exponentialRampToValueAtTime(900, t + len);
+  const g = ctx.createGain(); g.gain.value = (kind === 'pick' ? 0.12 : 0.35) * gain;
+  src.connect(bp).connect(g).connect(dest); src.start(t);
+  if (kind === 'place') {
+    const osc = ctx.createOscillator(), og = ctx.createGain();
+    osc.frequency.setValueAtTime(190, t); osc.frequency.exponentialRampToValueAtTime(70, t + 0.08);
+    og.gain.setValueAtTime(0.35 * gain, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    osc.connect(og).connect(dest); osc.start(t); osc.stop(t + 0.12);
+  }
+}
+function sfx(kind, gain = 1) {
+  // films schedule their own (deterministic) sound events
+  if (!soundOn || (filmMode.active && !filmMode.liveSfx)) return;
+  try { const c = audioCtx(); synth(c, c.destination, c.currentTime, kind, gain); } catch (e) { /* audio is optional */ }
 }
 
 /* ------------------------------------------------------------------ *
@@ -1193,7 +1358,7 @@ function setView(side, animate) {
   let dTheta = s.theta - from.theta;
   dTheta = ((dTheta + Math.PI) % TAU + TAU) % TAU - Math.PI;   // shortest way round
   if (Math.abs(Math.abs(dTheta) - Math.PI) < 0.05) dTheta = Math.PI; // a flip always goes the same way
-  camTween = { from, to: new THREE.Spherical(s.radius, s.phi, from.theta + dTheta), t0: performance.now(), dur: 1.0, tFrom: controls.target.clone() };
+  camTween = { from, to: new THREE.Spherical(s.radius, s.phi, from.theta + dTheta), t0: clock.now(), dur: 1.0, tFrom: controls.target.clone() };
   controls.enabled = false;
 }
 
@@ -1325,6 +1490,17 @@ if (innerWidth < 760) $('logHead').onclick();
 
 addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
+  if (film.active) {
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    if (e.key === ' ') { e.preventDefault(); $('fPlay').click(); }
+    else if (e.key === 'Escape') exitFilm();
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const i = clamp(film.beatIdx + (e.key === 'ArrowRight' ? 1 : (film.t - film.comp.beats[film.beatIdx].start > 1 ? 0 : -1)), 0, film.comp.beats.length - 1);
+      seekFilm(film.comp.beats[i].start);
+    }
+    return;
+  }
   if (e.key === 'Escape') { if (pending) cancelPromotion(); else if (overEl.classList.contains('show')) hideModal(overEl); else deselect(); }
   else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
@@ -1336,6 +1512,7 @@ addEventListener('keydown', (e) => {
  *  Resize & frame loop
  * ------------------------------------------------------------------ */
 function resize() {
+  if (film.active) return; // the film renders at a fixed 1080×1920; CSS scales the preview
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
@@ -1353,9 +1530,33 @@ addEventListener('resize', resize);
 let boilStep = 0, wiggleTime = 0, lastT = performance.now();
 const tmp = new THREE.Vector3();
 
-function frame(now) {
+function frame(rafNow) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  // rAF timestamps can trail performance.now(), so never let dt go negative
+  const dt = clamp((rafNow - lastT) / 1000, 0, 0.05); lastT = rafNow;
+  if (film.active) { film.onFrame(dt); return; }
+  updateWorld(dt, rafNow);
+  updateGameCamera(rafNow);
+  renderer.render(scene, camera);
+}
+
+// camera tween (orbits around instead of cutting through the board)
+function updateGameCamera(now) {
+  if (camTween) {
+    const k = Math.min(1, (now - camTween.t0) / 1000 / camTween.dur), e = ease(k);
+    const s = new THREE.Spherical(
+      camTween.from.radius + (camTween.to.radius - camTween.from.radius) * e,
+      camTween.from.phi + (camTween.to.phi - camTween.from.phi) * e,
+      camTween.from.theta + (camTween.to.theta - camTween.from.theta) * e);
+    controls.target.lerpVectors(camTween.tFrom, new THREE.Vector3(0, -0.1, 0), e);
+    camera.position.setFromSpherical(s).add(controls.target);
+    camera.lookAt(controls.target);
+    if (k >= 1) { camTween = null; controls.enabled = true; controls.update(); }
+  } else controls.update();
+}
+
+// Advances everything that moves on its own: line boil, pieces, ghosts, puffs. `now` is in ms.
+function updateWorld(dt, now) {
   if (wiggle) wiggleTime += dt;
   U.uTime.value = wiggleTime;
 
@@ -1369,78 +1570,1040 @@ function frame(now) {
     for (const m of markerPool) if (m.visible) m.material.map = markerTex[m.userData.kind][v];
   }
 
-  // camera tween (orbits around instead of cutting through the board)
-  if (camTween) {
-    const k = Math.min(1, (now - camTween.t0) / 1000 / camTween.dur), e = ease(k);
-    const s = new THREE.Spherical(
-      camTween.from.radius + (camTween.to.radius - camTween.from.radius) * e,
-      camTween.from.phi + (camTween.to.phi - camTween.from.phi) * e,
-      camTween.from.theta + (camTween.to.theta - camTween.from.theta) * e);
-    controls.target.lerpVectors(camTween.tFrom, new THREE.Vector3(0, -0.1, 0), e);
-    camera.position.setFromSpherical(s).add(controls.target);
-    camera.lookAt(controls.target);
-    if (k >= 1) { camTween = null; controls.enabled = true; controls.update(); }
-  } else controls.update();
-
   const t = now / 1000;
-  for (const o of pieces) {
-    const sel = o.square && o.square === selected && !o.tween;
-    const liftTarget = o.dragging ? 0 : sel ? 0.24 + Math.sin(t * 4) * 0.03 : (o === hoverObj ? 0.09 : 0);
-    o.lift += (liftTarget - o.lift) * Math.min(1, dt * 14);
-    o.glow += ((sel || o.dragging ? 1 : 0) - o.glow) * Math.min(1, dt * 10);
-    o.mat.uniforms.uGlow.value = o.glow;
-
-    const p = o.group.position;
-    if (o.dragging) {
-      tmp.set(dragTarget.x, 0.55, dragTarget.z);
-      p.lerp(tmp, Math.min(1, dt * 22));
-      o.group.rotation.z = clamp((tmp.x - p.x) * -0.6, -0.35, 0.35);
-      o.group.rotation.x = clamp((tmp.z - p.z) * 0.6, -0.35, 0.35);
-    } else if (o.tween) {
-      const tw = o.tween;
-      let k = (now - tw.t0) / 1000 / tw.dur;
-      if (k >= 0 && !tw.started) { tw.started = true; if (tw.capture) sfx('capture'); }
-      k = clamp(k, 0, 1);
-      const e = ease(k);
-      p.lerpVectors(tw.from, tw.to, e);
-      p.y += tw.h * 4 * e * (1 - e);
-      o.scale = tw.fromScale + (tw.toScale - tw.fromScale) * e;
-      if (tw.capture) o.group.rotation.z = Math.sin(e * Math.PI) * 0.6 * (o.color === 'w' ? 1 : -1);
-      if (k >= 1) {
-        o.tween = null; o.group.rotation.z = 0;
-        if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
-        o.squash = 1;
-        if (o.square) { sfx('place'); if (!pending) spawnPuff(p.x, p.z); }
-      }
-    } else {
-      p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
-      o.group.rotation.x *= 0.8; o.group.rotation.z *= 0.8;
-      if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
-    }
-    o.squash = Math.max(0, o.squash - dt * 5);
-    o.pop = Math.max(0, o.pop - dt * 3);
-    const sq = Math.sin(o.squash * Math.PI) * 0.12, pop = Math.sin(o.pop * Math.PI) * 0.25;
-    const sc = o.scale * (1 + pop);
-    o.group.scale.set(sc * (1 + sq * 0.5), sc * (1 - sq), sc * (1 + sq * 0.5));
-
-    // hatched contact shadow, cast away from the light; shrinks as the piece rises
-    const ground = (o.tween ? (o.tween.to.y <= TABLE_Y + 0.01 ? TABLE_Y : 0) : o.rest.y <= TABLE_Y + 0.01 ? TABLE_Y : 0);
-    const hgt = Math.max(0, p.y - ground);
-    const L = U.uLight.value;
-    o.shadow.position.set(p.x - L.x * (0.12 + hgt * 0.5), ground + 0.005, p.z - L.z * (0.12 + hgt * 0.5));
-    const ss = o.shadowSize * o.scale * (1 + hgt * 0.35);
-    o.shadow.scale.set(ss * 1.15, 1, ss);
-    o.shadow.material.opacity = 0.5 / (1 + hgt * 1.6);
-  }
+  for (const o of pieces) stepPiece(o, dt, now, t);
+  for (const o of ghosts) stepPiece(o, dt, now, t);
 
   for (const pf of puffs) if (pf.visible) {
     const k = (now - pf.userData.t0) / 380;
     if (k >= 1) { pf.visible = false; continue; }
     const s = 0.7 + k * 0.6; pf.scale.set(s, 1, s); pf.material.opacity = 1 - k;
   }
-
-  renderer.render(scene, camera);
 }
+
+function stepPiece(o, dt, now, t) {
+  let liftTarget, glowTarget;
+  if (filmMode.active) {
+    // a film can make a piece "hesitate" (lift and wobble) before it moves
+    const th = o.think;
+    let env = 0;
+    if (th) { const k = (now - th.t0) / 1000 / th.dur; env = k > 0 && k < 1 ? Math.sin(k * Math.PI) : 0; if (k >= 1) o.think = null; }
+    o.wob = env; liftTarget = env * 0.24; glowTarget = env;
+  } else {
+    const sel = o.square && o.square === selected && !o.tween;
+    liftTarget = o.dragging ? 0 : sel ? 0.24 + Math.sin(t * 4) * 0.03 : (o === hoverObj ? 0.09 : 0);
+    glowTarget = sel || o.dragging ? 1 : 0;
+  }
+  o.lift += (liftTarget - o.lift) * Math.min(1, dt * 14);
+  o.glow += (glowTarget - o.glow) * Math.min(1, dt * 10);
+  o.mat.uniforms.uGlow.value = o.glow;
+  if (o.ghost) o.setOpacity(o.opacity);
+
+  const p = o.group.position;
+  if (o.dragging) {
+    tmp.set(dragTarget.x, 0.55, dragTarget.z);
+    p.lerp(tmp, Math.min(1, dt * 22));
+    o.group.rotation.z = clamp((tmp.x - p.x) * -0.6, -0.35, 0.35);
+    o.group.rotation.x = clamp((tmp.z - p.z) * 0.6, -0.35, 0.35);
+  } else if (o.tween) {
+    const tw = o.tween;
+    let k = (now - tw.t0) / 1000 / tw.dur;
+    if (k >= 0 && !tw.started) { tw.started = true; if (tw.capture) sfx('capture'); }
+    k = clamp(k, 0, 1);
+    const e = ease(k);
+    p.lerpVectors(tw.from, tw.to, e);
+    p.y += tw.h * 4 * e * (1 - e);
+    o.scale = tw.fromScale + (tw.toScale - tw.fromScale) * e;
+    if (tw.capture) o.group.rotation.z = Math.sin(e * Math.PI) * 0.6 * (o.color === 'w' ? 1 : -1);
+    if (k >= 1) {
+      o.tween = null; o.group.rotation.z = 0;
+      if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
+      o.squash = 1;
+      if (o.square && !o.ghost) { sfx('place'); if (!pending) spawnPuff(p.x, p.z); }
+    }
+  } else {
+    p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
+    o.group.rotation.x *= 0.8;
+    o.group.rotation.z = o.wob ? Math.sin(t * 13) * 0.07 * o.wob : o.group.rotation.z * 0.8;
+    if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
+  }
+  o.squash = Math.max(0, o.squash - dt * 5);
+  o.pop = Math.max(0, o.pop - dt * 3);
+  const sq = Math.sin(o.squash * Math.PI) * 0.12, pop = Math.sin(o.pop * Math.PI) * 0.25;
+  const sc = o.scale * (1 + pop);
+  o.group.scale.set(sc * (1 + sq * 0.5), sc * (1 - sq), sc * (1 + sq * 0.5));
+
+  if (!o.shadow) return;
+  // hatched contact shadow, cast away from the light; shrinks as the piece rises
+  const ground = (o.tween ? (o.tween.to.y <= TABLE_Y + 0.01 ? TABLE_Y : 0) : o.rest.y <= TABLE_Y + 0.01 ? TABLE_Y : 0);
+  const hgt = Math.max(0, p.y - ground);
+  const L = U.uLight.value;
+  o.shadow.position.set(p.x - L.x * (0.12 + hgt * 0.5), ground + 0.005, p.z - L.z * (0.12 + hgt * 0.5));
+  const ss = o.shadowSize * o.scale * (1 + hgt * 0.35);
+  o.shadow.scale.set(ss * 1.15, 1, ss);
+  o.shadow.material.opacity = (0.5 / (1 + hgt * 1.6)) * (o.fade ?? 1);
+}
+
+/* ================================================================== *
+ *  FILM MODE
+ *  An annotated PGN story → auto-directed timeline → 9:16 video.
+ *  Everything below runs on the virtual clock, so the preview and the
+ *  exported MP4 show exactly the same frames.
+ * ================================================================== */
+const FILM_W = 1080, FILM_H = 1920, FILM_FPS = 60, FILM_DT = 1 / FILM_FPS;
+const LEAD = 0.9, TAIL = 1.1, VO_DELAY = 0.3;
+
+/* ------------------------------------------------------------------ *
+ *  Story parser: PGN with comments, variations, NAGs and [%tags]
+ * ------------------------------------------------------------------ */
+const NAG = { 1: '!', 2: '?', 3: '!!', 4: '??', 5: '!?', 6: '?!' };
+function parseComment(raw) {
+  const tags = [];
+  const text = raw.replace(/\[%(\w+)((?:[^\]"]|"[^"]*")*)\]/g, (m, k, args) => { tags.push({ k, args: args.trim() }); return ''; })
+    .replace(/\s+/g, ' ').trim();
+  return { text, tags };
+}
+function parseStory(src) {
+  const headers = {};
+  const body = src.replace(/^\s*\[(\w+)\s+"([^"]*)"\]\s*$/gm, (m, k, v) => { headers[k] = v; return ''; });
+  const re = /\{([^}]*)\}|(\()|(\))|\$(\d+)|(\d+\.(?:\.\.)?)|(1-0|0-1|1\/2-1\/2|\*)|((?:[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O-O|O-O)[+#]?)(!!|!\?|\?!|!|\?\?|\?)?|(\S+)/g;
+  const root = [], stack = [root];
+  let m;
+  while ((m = re.exec(body))) {
+    const cur = stack[stack.length - 1];
+    if (m[1] !== undefined) cur.push({ type: 'comment', ...parseComment(m[1]) });
+    else if (m[2]) {
+      const prev = [...cur].reverse().find((n) => n.type === 'move');
+      if (!prev) throw new Error('Variation "(" with no move before it');
+      const v = []; prev.vars.push(v); stack.push(v);
+    } else if (m[3]) { if (stack.length < 2) throw new Error('Unbalanced ")"'); stack.pop(); }
+    else if (m[4]) { const prev = [...cur].reverse().find((n) => n.type === 'move'); if (prev) prev.nag = NAG[m[4]] || prev.nag; }
+    else if (m[5] || m[6]) { if (m[6]) headers.Result = headers.Result || m[6]; }
+    else if (m[7]) cur.push({ type: 'move', san: m[7], nag: m[8] || '', vars: [] });
+    else throw new Error(`Unexpected token "${m[9]}" in story`);
+  }
+  if (stack.length !== 1) throw new Error('Unclosed variation');
+  return { headers, root };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Compiler: story tree → beats with timed actions
+ * ------------------------------------------------------------------ */
+const COLORS = { G: 'graphite', R: 'red', B: 'blue', Y: 'yellow' };
+const SQ_RE = /^[a-h][1-8]$/;
+const words = (s) => (s.match(/\S+/g) || []).length;
+const readTime = (s) => (s ? words(s) / 2.6 + 1.6 : 0);
+const quoted = (args) => { const q = args.match(/"([^"]*)"/); return q ? q[1] : args; };
+function parseCam(args) {
+  const tok = args.split(/\s+/).filter(Boolean);
+  return { preset: tok[0] || 'frame', squares: tok.filter((x) => SQ_RE.test(x)), side: tok.includes('b') ? 'b' : 'w' };
+}
+function tickerText(fenBefore, san, nag) {
+  const [, turn, , , , full] = fenBefore.split(' ');
+  return `${full}${turn === 'w' ? '.' : '…'} ${san}${nag}`;
+}
+function kingSquare(game, color) {
+  for (const row of game.board()) for (const c of row) if (c && c.type === 'k' && c.color === color) return c.square;
+  return null;
+}
+
+function compileStory(story, vo = {}) {
+  const g = new Chess();
+  if (story.headers.FEN) g.load(story.headers.FEN);
+  const beats = [];
+  let beat = null, ply = 0;
+  const openBeat = (caption, tags) => {
+    beat = { idx: beats.length, id: 'vo-' + String(beats.length + 1).padStart(2, '0'), caption, title: null, fen: g.fen(),
+      ticker: beats.length ? beats[beats.length - 1].lastTicker : null, lastTicker: null, timelapse: 0, speed: 1, items: [] };
+    for (const t of tags) {
+      if (t.k === 'title') beat.title = quoted(t.args);
+      else if (t.k === 'timelapse') beat.timelapse = parseFloat(t.args) || 0.3;
+      else if (t.k === 'speed') beat.speed = parseFloat(t.args) || 1;
+      else if (t.k === 'vo') beat.id = t.args;
+    }
+    beats.push(beat);
+  };
+  const lineOf = (fen, nodes) => {
+    const gg = new Chess(fen), out = [];
+    for (const n of nodes) if (n.type === 'move') {
+      let mv;
+      try { mv = gg.move(n.san); } catch (e) { throw new Error(`Illegal move ${n.san} in a variation`); }
+      out.push({ ...mv, nag: n.nag });
+    }
+    return out;
+  };
+  for (const n of story.root) {
+    if (n.type === 'comment') {
+      const opens = n.text || n.tags.some((t) => t.k === 'title');
+      if (opens) openBeat(n.text, n.tags);
+      else if (!beat) openBeat('', []);
+      beat.items.push({ kind: 'cue', tags: n.tags.filter((t) => !['title', 'timelapse', 'speed', 'vo'].includes(t.k) || !opens) });
+    } else {
+      if (!beat) openBeat('', []);
+      const before = g.fen();
+      let mv;
+      try { mv = g.move(n.san); } catch (e) { throw new Error(`Illegal move ${n.san} at ply ${ply + 1}`); }
+      ply++;
+      const ticker = tickerText(before, mv.san, n.nag);
+      beat.lastTicker = ticker;
+      beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
+        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })) });
+    }
+  }
+  for (const b of beats) if (!b.lastTicker) b.lastTicker = b.ticker;
+
+  // schedule every beat
+  let start = 0, seed = 1;
+  for (const b of beats) {
+    const A = [], squares = new Set();
+    let t = LEAD, hasCam = false, hadMove = false, camCueBeforeMove = false;
+    const slot0 = b.timelapse || 1.5 / b.speed;
+    const pushAnnot = (item, at) => { A.push({ t: at, type: 'annot', item: { ...item, seed: seed++ } }); if (item.sq) squares.add(item.sq); if (item.from) { squares.add(item.from); squares.add(item.to); } };
+    for (const it of b.items) {
+      if (it.kind === 'cue') {
+        let drew = 0;
+        for (const tag of it.tags) {
+          const args = tag.args;
+          if (tag.k === 'cam') {
+            const spec = parseCam(args);
+            A.push({ t: hadMove ? t : 0, type: 'cam', spec, base: !hadMove, blend: hadMove ? 1.3 : 1.8 });
+            hasCam = true; camCueBeforeMove = true;
+          } else if (tag.k === 'cal' || tag.k === 'csl' || tag.k === 'zone' || tag.k === 'trail') {
+            for (const spec of args.split(',').map((x) => x.trim()).filter(Boolean)) {
+              const color = COLORS[spec[0]] || 'graphite', a = spec.slice(1, 3), b2 = spec.slice(3, 5);
+              const kind = tag.k === 'cal' ? (b2 ? 'arrow' : 'circle') : tag.k === 'csl' ? 'circle' : tag.k;
+              const item = kind === 'arrow' || kind === 'trail' ? { kind, color, from: a, to: b2 } : { kind, color, sq: a };
+              pushAnnot(item, t + drew * 0.35); drew++;
+            }
+          } else if (tag.k === 'cross' || tag.k === 'tick') {
+            for (const sq of args.split(/[\s,]+/).filter((x) => SQ_RE.test(x))) { pushAnnot({ kind: tag.k, color: tag.k === 'tick' ? 'blue' : 'red', sq }, t + drew * 0.35); drew++; }
+          } else if (tag.k === 'label') {
+            const sq = args.split(/\s+/)[0];
+            A.push({ t: t + drew * 0.35, type: 'label', sq, text: quoted(args.slice(2)) }); squares.add(sq); drew++;
+          } else if (tag.k === 'hold') t += parseFloat(args) || 1;
+          else if (tag.k === 'think') {
+            const sq = args.trim(); A.push({ t, type: 'think', sq, dur: 1.1 }); t += 1.1;
+          } else if (tag.k === 'clear') A.push({ t, type: 'clear' });
+          else if (tag.k === 'recap') {
+            const list = quoted(args).split('|').map((x) => x.trim()).filter(Boolean);
+            A.push({ t, type: 'recap', list }); t += list.length * 0.9 + 0.8;
+          }
+        }
+        if (drew) t += drew * 0.35 + (b.timelapse ? 1.0 : 0.45);
+        continue;
+      }
+      // a move — first show any alternatives that were considered, as ghost lines
+      for (const v of it.vars) {
+        if (!v.moves.length) continue;
+        const gid = seed++, gslot = 1.05;
+        A.push({ t, type: 'ghostStart', gid });
+        let gt = t + 0.4;
+        for (const gm of v.moves) {
+          A.push({ t: gt, type: 'ghostMove', gid, mv: gm, moveDur: 0.6 });
+          pushAnnot({ kind: 'arrow', color: 'blue', from: gm.from, to: gm.to, dashed: true, ghost: gid }, gt);
+          A.push({ t: gt + 0.6, type: 'sfx', kind: 'pick' });
+          gt += gslot;
+        }
+        const last = v.moves[v.moves.length - 1];
+        const good = /!/.test(last.nag) && !/\?/.test(last.nag);
+        pushAnnot({ kind: good ? 'tick' : 'cross', color: good ? 'blue' : 'red', sq: last.to, ghost: gid }, gt);
+        A.push({ t: gt + 1.7, type: 'ghostEnd', gid });
+        t = gt + 2.4;
+      }
+      const mv = it.mv, strong = /!/.test(it.nag) && !b.timelapse;
+      let slot = slot0 * (strong ? 1.35 : 1) + (mv.captured && !b.timelapse ? 0.25 : 0);
+      const moveDur = b.timelapse ? slot * 0.8 : Math.min(0.9, slot * 0.5) * (strong ? 1.45 : 1);
+      if (it.check && !b.timelapse && !camCueBeforeMove) {
+        A.push({ t: Math.max(0, t - 0.5), type: 'cam', spec: { preset: 'check', squares: [it.kingSq, mv.to] }, blend: 0.9 });
+        A.push({ t: t + slot + 0.4, type: 'cam', spec: { preset: 'restore' }, blend: 1.3 });
+        slot += 0.6;
+      }
+      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker });
+      A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
+      if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
+      squares.add(mv.from); squares.add(mv.to);
+      t += slot; hadMove = true; camCueBeforeMove = false;
+    }
+    if (!hasCam) {
+      const sq = [...squares];
+      A.unshift({ t: 0, type: 'cam', spec: b.timelapse ? { preset: 'top', squares: [] } : sq.length ? { preset: 'frame', squares: sq } : { preset: 'overview', squares: [] }, base: true, blend: 1.8 });
+    }
+    A.sort((a, c) => a.t - c.t);
+    const voDur = vo[b.id] ? vo[b.id].duration + VO_DELAY + 0.6 : 0;
+    b.actions = A;
+    b.dur = Math.max(t + TAIL, LEAD + readTime(b.caption), voDur);
+    b.start = start;
+    b.squares = [...squares];
+    start += b.dur;
+  }
+  return { headers: story.headers, beats, duration: start, plies: ply, finalFen: g.fen() };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Annotation layer: pencil marks drawn onto a canvas lying on the board
+ * ------------------------------------------------------------------ */
+const ANNOT_S = 2048, ANNOT_W = 8.6, PPS = ANNOT_S / ANNOT_W;
+const annotCanvas = makeCanvas(ANNOT_S), annotCtx = annotCanvas.getContext('2d');
+const annotTex = toTex(annotCanvas);
+const annotMesh = new THREE.Mesh(new THREE.PlaneGeometry(ANNOT_W, ANNOT_W).rotateX(-Math.PI / 2),
+  new THREE.MeshBasicMaterial({ map: annotTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+annotMesh.position.y = 0.012; annotMesh.renderOrder = 3; annotMesh.visible = false;
+scene.add(annotMesh);
+const INK = { graphite: [40, 38, 34], red: [194, 54, 31], blue: [43, 86, 184], yellow: [255, 200, 30] };
+const inkCol = (c, a) => `rgba(${INK[c].join(',')},${a})`;
+let annots = [], annotDirty = true;
+const annotPx = (sq) => { const { x, z } = sqToXZ(sq); return [(x + ANNOT_W / 2) * PPS, (z + ANNOT_W / 2) * PPS]; };
+
+function withSeed(seed, fn) { const saved = rand; rand = mulberry32(seed); try { fn(); } finally { rand = saved; } }
+function strokePartial(ctx, pts, p) {
+  const n = Math.max(1, Math.floor((pts.length - 1) * p));
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i <= n; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  const f = (pts.length - 1) * p - n;
+  if (n < pts.length - 1 && f > 0) ctx.lineTo(pts[n][0] + (pts[n + 1][0] - pts[n][0]) * f, pts[n][1] + (pts[n + 1][1] - pts[n][1]) * f);
+  ctx.stroke();
+}
+function inked(ctx, color, alpha, width, draw, halo = true) {
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (halo && color !== 'yellow') { ctx.strokeStyle = `rgba(250,247,239,${0.85 * alpha})`; ctx.lineWidth = width * 2.4; draw(); }
+  ctx.strokeStyle = inkCol(color, (color === 'yellow' ? 0.5 : 0.92) * alpha); ctx.lineWidth = width; draw();
+}
+function drawAnnot(ctx, a, p, alpha) {
+  withSeed(a.seed, () => {
+    if (a.kind === 'arrow' || a.kind === 'trail') {
+      const [x1, y1] = annotPx(a.from), [x2, y2] = annotPx(a.to);
+      const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+      const passes = a.kind === 'trail' ? [1, -1] : [1];
+      for (const side of passes) {
+        const sx = side > 0 ? x1 : x2, sy = side > 0 ? y1 : y2, ex = side > 0 ? x2 : x1, ey = side > 0 ? y2 : y1;
+        const bend = (a.kind === 'trail' ? 0.22 : 0.08 + rand() * 0.06) * L * (rand() < 0.5 && a.kind !== 'trail' ? -1 : 1) * side;
+        const ax = sx + ux * side * PPS * 0.22, ay = sy + uy * side * PPS * 0.22, bx = ex - ux * side * PPS * 0.3, by = ey - uy * side * PPS * 0.3;
+        const cx = (ax + bx) / 2 - uy * bend, cy = (ay + by) / 2 + ux * bend;
+        const pts = [];
+        for (let i = 0; i <= 28; i++) {
+          const k = i / 28, q = 1 - k;
+          pts.push([q * q * ax + 2 * q * k * cx + k * k * bx + rj(1.5), q * q * ay + 2 * q * k * cy + k * k * by + rj(1.5)]);
+        }
+        const w = a.kind === 'trail' ? PPS * 0.04 : PPS * 0.075;
+        if (a.dashed || a.kind === 'trail') ctx.setLineDash([PPS * 0.14, PPS * 0.1]);
+        inked(ctx, a.color, alpha, w, () => strokePartial(ctx, pts, p));
+        ctx.setLineDash([]);
+        if (p > 0.82) {
+          const [hx, hy] = pts[pts.length - 1], [px, py] = pts[pts.length - 4];
+          const ang = Math.atan2(hy - py, hx - px), hl = PPS * (a.kind === 'trail' ? 0.18 : 0.3) * Math.min(1, (p - 0.82) / 0.18);
+          inked(ctx, a.color, alpha, w, () => {
+            ctx.beginPath();
+            ctx.moveTo(hx - Math.cos(ang - 0.5) * hl, hy - Math.sin(ang - 0.5) * hl); ctx.lineTo(hx, hy);
+            ctx.lineTo(hx - Math.cos(ang + 0.5) * hl, hy - Math.sin(ang + 0.5) * hl); ctx.stroke();
+          });
+        }
+      }
+    } else if (a.kind === 'circle') {
+      const [cx, cy] = annotPx(a.sq), r = PPS * 0.44, loops = 1.3, start = rand() * TAU, ph = rand() * TAU, pts = [];
+      for (let i = 0; i <= 64; i++) {
+        const k = i / 64, ang = start + TAU * loops * k, rr = r * (1 + 0.07 * Math.sin(ang * 2 + ph)) + r * 0.1 * k;
+        pts.push([cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr * 0.96]);
+      }
+      inked(ctx, a.color, alpha, PPS * 0.055, () => strokePartial(ctx, pts, p));
+    } else if (a.kind === 'zone') {
+      const [cx, cy] = annotPx(a.sq), h = PPS * 0.47;
+      ctx.save(); ctx.beginPath(); ctx.rect(cx - h, cy - h, h * 2, h * 2); ctx.clip();
+      const lines = 16, shown = Math.ceil(lines * p);
+      for (let i = 0; i < shown; i++) {
+        const o = -h * 2 + (i / lines) * h * 4;
+        inked(ctx, a.color, alpha * 0.75, PPS * 0.025, () => { ctx.beginPath(); ctx.moveTo(cx + o - h + rj(3), cy + h); ctx.lineTo(cx + o + h + rj(3), cy - h); ctx.stroke(); }, false);
+      }
+      ctx.restore();
+      const fr = [[cx - h, cy - h], [cx + h, cy - h], [cx + h, cy + h], [cx - h, cy + h], [cx - h, cy - h]].map(([x, y]) => [x + rj(3), y + rj(3)]);
+      inked(ctx, a.color, alpha, PPS * 0.035, () => strokePartial(ctx, fr, p));
+    } else if (a.kind === 'cross' || a.kind === 'tick') {
+      const [cx, cy] = annotPx(a.sq), h = PPS * 0.36;
+      const strokes = a.kind === 'cross'
+        ? [[[cx - h, cy - h], [cx + h, cy + h]], [[cx + h, cy - h], [cx - h, cy + h]]]
+        : [[[cx - h, cy], [cx - h * 0.25, cy + h * 0.7], [cx + h * 1.1, cy - h * 0.9]]];
+      strokes.forEach((s, i) => {
+        const k = clamp(p * strokes.length - i, 0, 1);
+        if (k <= 0) return;
+        const pts = [];
+        for (let j = 0; j < s.length - 1; j++) for (let q = 0; q < 8; q++) {
+          const f = q / 8; pts.push([s[j][0] + (s[j + 1][0] - s[j][0]) * f + rj(2), s[j][1] + (s[j + 1][1] - s[j][1]) * f + rj(2)]);
+        }
+        pts.push(s[s.length - 1]);
+        inked(ctx, a.color, alpha, PPS * 0.08, () => strokePartial(ctx, pts, k));
+      });
+    }
+  });
+}
+function updateAnnots(nowS) {
+  let animating = annotDirty;
+  for (const a of annots) {
+    const p = (nowS - a.t0) / a.dur, out = a.tOut != null ? (nowS - a.tOut) / 0.5 : -1;
+    if ((p > 0 && p < 1.05) || (out > -0.05 && out < 1.05)) animating = true;
+  }
+  annots = annots.filter((a) => a.tOut == null || nowS - a.tOut < 0.6);
+  if (!animating) return;
+  annotDirty = false;
+  annotCtx.clearRect(0, 0, ANNOT_S, ANNOT_S);
+  for (const a of annots) {
+    const p = clamp((nowS - a.t0) / a.dur, 0, 1);
+    const alpha = a.tOut != null ? 1 - clamp((nowS - a.tOut) / 0.5, 0, 1) : 1;
+    if (p > 0 && alpha > 0) drawAnnot(annotCtx, a, p, alpha);
+  }
+  annotTex.needsUpdate = true;
+}
+function addAnnot(item, nowS) {
+  const dur = item.kind === 'zone' ? 0.8 : item.kind === 'trail' ? 0.9 : item.kind === 'circle' ? 0.55 : 0.6;
+  annots.push({ ...item, t0: nowS, dur, tOut: null }); annotDirty = true;
+}
+function clearAnnots(nowS, filter = () => true) {
+  for (const a of annots) if (a.tOut == null && filter(a)) a.tOut = nowS;
+  annotDirty = true;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Ghost pieces: see-through "what if" lines
+ * ------------------------------------------------------------------ */
+const ghosts = [];
+function ghostHullMat(src) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uRes: U.uRes, uTime: U.uTime, uInk: U.uInk, uWidth: src.uniforms.uWidth, uSeed: src.uniforms.uSeed, uOffset: src.uniforms.uOffset, uOpacity: { value: 0 } },
+    vertexShader: OUTLINE_VS, fragmentShader: OUTLINE_FS, side: THREE.BackSide, transparent: true, depthWrite: false,
+  });
+}
+function makeGhost(type, color, sq, gid) {
+  const g = getGeo(type, color);
+  const o = { ghost: true, gid, type, color, square: sq, group: new THREE.Group(), lift: 0, glow: 0, tween: null, squash: 0, pop: 0,
+    baseScale: 1, scale: 1, rest: new THREE.Vector3(), opacity: 0, shadow: null, in0: clock.now(), out0: null };
+  o.mat = pieceMaterial(color, 99); o.mat.transparent = true; o.mat.depthWrite = false;
+  o.hulls = [ghostHullMat(outlineA), ghostHullMat(outlineB)];
+  const mesh = new THREE.Mesh(g.shade, o.mat);
+  o.group.add(mesh, new THREE.Mesh(g.outline, o.hulls[0]), new THREE.Mesh(g.outline, o.hulls[1]));
+  o.group.children.forEach((c) => { c.renderOrder = 7; });
+  o.group.rotation.y = type === 'n' ? (color === 'w' ? Math.PI - 0.45 : -0.45) : color === 'w' ? 0 : Math.PI;
+  o.setOpacity = (a) => { o.mat.uniforms.uOpacity.value = a; o.hulls[0].uniforms.uOpacity.value = a; o.hulls[1].uniforms.uOpacity.value = a * 0.8; o.group.visible = a > 0.01; };
+  const { x, z } = sqToXZ(sq);
+  o.rest.set(x, 0, z); o.group.position.copy(o.rest);
+  scene.add(o.group); ghosts.push(o);
+  return o;
+}
+function removeGhost(o) { scene.remove(o.group); o.mat.dispose(); o.hulls.forEach((h) => h.dispose()); ghosts.splice(ghosts.indexOf(o), 1); }
+
+// Real pieces dim while a ghost line is shown (the piece that "would" move, and anything it "would" capture)
+const fadeHullA = ghostHullMat(outlineA), fadeHullB = ghostHullMat(outlineB);
+const realFade = { pieces: new Set(), value: 1, from: 1, to: 1, t0: 0 };
+function setRealFaded(o, on) {
+  o.mat.transparent = on; o.mat.depthWrite = !on; o.mat.needsUpdate = true;
+  o.group.children.forEach((c, i) => {
+    if (i === 1) c.material = on ? fadeHullA : outlineA;
+    else if (i === 2) c.material = on ? fadeHullB : outlineB;
+    else if (i > 2) c.visible = !on;
+  });
+  if (!on) { o.mat.uniforms.uOpacity.value = 1; o.fade = 1; }
+}
+function updateGhosts(nowMs) {
+  for (const o of [...ghosts]) {
+    const a = 0.55 * clamp((nowMs - o.in0) / 400, 0, 1) * (o.out0 != null ? 1 - clamp((nowMs - o.out0) / 600, 0, 1) : 1);
+    o.opacity = a;
+    if (o.out0 != null && nowMs - o.out0 > 650) removeGhost(o);
+  }
+  if (realFade.pieces.size) {
+    const k = clamp((nowMs - realFade.t0) / 400, 0, 1);
+    realFade.value = realFade.from + (realFade.to - realFade.from) * k;
+    for (const o of realFade.pieces) { o.mat.uniforms.uOpacity.value = realFade.value; o.fade = realFade.value; }
+    fadeHullA.uniforms.uOpacity.value = realFade.value; fadeHullB.uniforms.uOpacity.value = realFade.value * 0.8;
+    if (k >= 1 && realFade.to === 1) { for (const o of realFade.pieces) setRealFaded(o, false); realFade.pieces.clear(); }
+  }
+}
+function fadeReal(o, nowMs) {
+  if (!o || realFade.pieces.has(o)) return;
+  setRealFaded(o, true); realFade.pieces.add(o);
+  realFade.from = realFade.value; realFade.to = 0.3; realFade.t0 = nowMs;
+}
+function clearGhosts(instant) {
+  for (const o of [...ghosts]) { if (instant) removeGhost(o); else if (o.out0 == null) o.out0 = clock.now(); }
+  if (instant) { for (const o of realFade.pieces) setRealFaded(o, false); realFade.pieces.clear(); realFade.value = 1; }
+  else if (realFade.pieces.size) { realFade.from = realFade.value; realFade.to = 1; realFade.t0 = clock.now(); }
+}
+
+/* ------------------------------------------------------------------ *
+ *  Camera director: shots framed for a tall 9:16 picture
+ * ------------------------------------------------------------------ */
+const SHOTS = {
+  overview: { phi: 0.62, pad: 0.6, drift: 0.02, all: true },
+  top: { phi: 0.16, pad: 0.4, drift: 0.05, all: true },
+  frame: { phi: 0.84, pad: 0.95, drift: 0.025 },
+  closeup: { phi: 0.98, pad: 0.6, drift: 0.03 },
+  low: { phi: 1.2, pad: 0.75, drift: 0.02 },
+  orbit: { phi: 0.92, pad: 1.3, drift: 0.07 },
+  follow: { phi: 0.86, pad: 1.6, drift: 0.02, follow: true },
+  profile: { phi: 1.14, pad: 0.75, drift: 0, line: true },
+  check: { phi: 1.12, pad: 0.85, drift: 0, line: true },
+};
+const CAM_FOV = 42;
+const camState = { cur: null, prev: null, blend0: 0, blendDur: 1, base: null, theme: 0 };
+const wrapNear = (a, ref) => a + TAU * Math.round((ref - a) / TAU);
+
+function resolveShot(spec, nowMs) {
+  if (spec.preset === 'restore') return camState.base ? resolveShot(camState.base, nowMs) : resolveShot({ preset: 'overview', squares: [] }, nowMs);
+  const P = SHOTS[spec.preset] || SHOTS.frame;
+  let squares = spec.squares && spec.squares.length ? spec.squares : (P.all ? ['a1', 'h1', 'a8', 'h8'] : ['d4', 'e5']);
+  if (P.all) squares = ['a1', 'h1', 'a8', 'h8'];
+  const shot = { phi: P.phi, pad: P.pad, drift: P.drift, t0: nowMs, fov: CAM_FOV };
+  if (P.follow) {
+    shot.follow = squares.map((sq) => pieces.find((o) => o.square === sq)).filter(Boolean);
+    if (!shot.follow.length) shot.follow = null;
+  }
+  shot.pts = squares.map((sq) => { const { x, z } = sqToXZ(sq); return [x, z]; });
+  let theta = (spec.side === 'b' ? Math.PI : 0) + camState.theme;
+  if (P.line && shot.pts.length >= 2) {
+    // look along the line from the first square towards the last, slightly off-axis so pieces don't hide each other
+    const [a, b] = [shot.pts[0], shot.pts[shot.pts.length - 1]];
+    const along = spec.preset === 'check' ? Math.atan2(b[0] - a[0], b[1] - a[1]) : Math.atan2(a[0] - b[0], a[1] - b[1]);
+    theta = along + 0.38;
+  }
+  const prevTheta = camState.cur ? posePrevTheta() : theta;
+  shot.theta = wrapNear(theta, prevTheta);
+  return shot;
+}
+function posePrevTheta() { return lastPose ? lastPose.theta : 0; }
+function shotPose(shot, nowMs) {
+  const pts = shot.follow ? shot.follow.map((o) => [o.group.position.x, o.group.position.z]) : shot.pts;
+  let cx = 0, cz = 0;
+  for (const [x, z] of pts) { cx += x; cz += z; }
+  cx /= pts.length; cz /= pts.length;
+  let r = 0;
+  for (const [x, z] of pts) r = Math.max(r, Math.hypot(x - cx, z - cz));
+  r = Math.hypot(r + shot.pad, 0.55);
+  const vHalf = (shot.fov * Math.PI / 180) / 2, hHalf = Math.atan(Math.tan(vHalf) * (FILM_W / FILM_H));
+  const dist = clamp(r / Math.sin(Math.min(hHalf, vHalf * 0.6)), 4.5, 40);
+  return { tx: cx, ty: 0.3, tz: cz, r: dist, phi: shot.phi, theta: shot.theta + shot.drift * (nowMs - shot.t0) / 1000, fov: shot.fov };
+}
+let lastPose = null;
+function applyPose(p) {
+  lastPose = p;
+  if (camera.fov !== p.fov) { camera.fov = p.fov; camera.updateProjectionMatrix(); }
+  const target = new THREE.Vector3(p.tx, p.ty, p.tz);
+  camera.position.setFromSpherical(new THREE.Spherical(p.r, clamp(p.phi, 0.05, 1.25), p.theta)).add(target);
+  camera.lookAt(target);
+}
+function setShot(spec, nowMs, blend, base) {
+  if (base) camState.base = spec;
+  const shot = resolveShot(spec, nowMs);
+  if (blend > 0 && camState.cur) { camState.prev = camState.cur; camState.blend0 = nowMs; camState.blendDur = blend; }
+  else camState.prev = null;
+  camState.cur = shot;
+}
+function updateFilmCamera(nowMs) {
+  if (!camState.cur) return;
+  let p = shotPose(camState.cur, nowMs);
+  if (camState.prev) {
+    const k = clamp((nowMs - camState.blend0) / 1000 / camState.blendDur, 0, 1), e = ease(k);
+    const q = shotPose(camState.prev, nowMs);
+    const th = q.theta + (wrapNear(p.theta, q.theta) - q.theta) * e;
+    p = { tx: q.tx + (p.tx - q.tx) * e, ty: q.ty + (p.ty - q.ty) * e, tz: q.tz + (p.tz - q.tz) * e,
+      r: Math.exp(Math.log(q.r) + (Math.log(p.r) - Math.log(q.r)) * e), phi: q.phi + (p.phi - q.phi) * e, theta: th, fov: q.fov + (p.fov - q.fov) * e };
+    if (k >= 1) camState.prev = null;
+  }
+  applyPose(p);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Compositor: the 3D frame + captions, titles, labels → one 9:16 canvas
+ * ------------------------------------------------------------------ */
+const compCanvas = makeCanvas(FILM_W, FILM_H);
+compCanvas.id = 'filmCanvas';
+const cctx = compCanvas.getContext('2d');
+let grainPattern = null;
+function buildGrain() {
+  const c = makeCanvas(256), x = c.getContext('2d'), img = x.createImageData(256, 256);
+  const r = mulberry32(42);
+  for (let i = 0; i < img.data.length; i += 4) { const v = 200 + r() * 55; img.data[i] = v; img.data[i + 1] = v * 0.98; img.data[i + 2] = v * 0.93; img.data[i + 3] = 255; }
+  x.putImageData(img, 0, 0);
+  grainPattern = cctx.createPattern(c, 'repeat');
+}
+function wrapText(ctx, text, maxW) {
+  const out = []; let line = '';
+  for (const w of text.split(' ')) {
+    const t = line ? line + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+function sketchBox(ctx, x, y, w, h, seed, alpha = 1) {
+  withSeed(seed, () => {
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(251,249,243,0.93)'; ctx.fillRect(x, y, w, h);
+    roughRect(ctx, x, y, w, h, 4, 3, 'rgba(27,26,23,0.95)');
+    roughRect(ctx, x + 5, y + 4, w - 4, h - 3, 2, 3, 'rgba(27,26,23,0.4)', 1);
+    ctx.restore();
+  });
+}
+const projV = new THREE.Vector3();
+function toScreen(x, y, z) { projV.set(x, y, z).project(camera); return [(projV.x + 1) / 2 * FILM_W, (1 - projV.y) / 2 * FILM_H, projV.z]; }
+
+function composite() {
+  const nowS = film.t, boil = Math.floor(wiggleTime * 5) % VARIANTS;
+  const b = film.comp.beats[film.beatIdx];
+  cctx.globalCompositeOperation = 'source-over'; cctx.globalAlpha = 1;
+  cctx.fillStyle = PAPER_HEX; cctx.fillRect(0, 0, FILM_W, FILM_H);
+  cctx.drawImage(renderer.domElement, 0, 0, FILM_W, FILM_H);
+  cctx.globalCompositeOperation = 'multiply'; cctx.fillStyle = grainPattern; cctx.fillRect(0, 0, FILM_W, FILM_H);
+  const vg = cctx.createRadialGradient(FILM_W / 2, FILM_H * 0.45, FILM_H * 0.3, FILM_W / 2, FILM_H * 0.45, FILM_H * 0.75);
+  vg.addColorStop(0, 'rgba(255,255,255,1)'); vg.addColorStop(1, 'rgba(205,192,168,1)');
+  cctx.fillStyle = vg; cctx.fillRect(0, 0, FILM_W, FILM_H);
+  cctx.globalCompositeOperation = 'source-over';
+
+  // header
+  const H = film.comp.headers;
+  cctx.textAlign = 'center'; cctx.textBaseline = 'middle';
+  cctx.fillStyle = 'rgba(74,71,64,0.9)'; cctx.font = '38px "Patrick Hand", cursive';
+  cctx.fillText(H.FilmHeader || `${H.White} – ${H.Black}`, FILM_W / 2, 74);
+
+  // chapter title with a scribbled underline
+  let y = 170;
+  if (film.title) {
+    const k = clamp((nowS - film.title.t0) / 0.5, 0, 1);
+    cctx.save(); cctx.globalAlpha = k; cctx.translate(FILM_W / 2, y + (1 - k) * 20); cctx.rotate(-0.025);
+    cctx.font = '700 96px Caveat, cursive'; cctx.fillStyle = INK_HEX; cctx.fillText(film.title.text, 0, 0);
+    const w = Math.min(cctx.measureText(film.title.text).width, 900);
+    withSeed(film.title.seed + boil, () => {
+      const pts = []; for (let i = 0; i <= 30; i++) pts.push([-w / 2 + w * i / 30, 52 + Math.sin(i * 0.5) * 4 + rj(2)]);
+      cctx.strokeStyle = 'rgba(194,54,31,0.85)'; cctx.lineWidth = 6; cctx.lineCap = 'round';
+      strokePartial(cctx, pts, clamp((nowS - film.title.t0 - 0.3) / 0.6, 0, 1));
+    });
+    cctx.restore();
+    y += 128;
+  }
+  // move ticker
+  if (film.ticker) {
+    const k = clamp((nowS - film.ticker.t0) / 0.25, 0, 1), pop = 1 + Math.sin(k * Math.PI) * 0.12;
+    cctx.save(); cctx.translate(FILM_W / 2, y); cctx.scale(pop, pop);
+    cctx.font = '700 76px Caveat, cursive'; cctx.lineWidth = 12; cctx.strokeStyle = 'rgba(250,247,239,0.9)';
+    cctx.strokeText(film.ticker.text, 0, 0); cctx.fillStyle = INK_HEX; cctx.fillText(film.ticker.text, 0, 0);
+    cctx.restore();
+  }
+
+  // labels pinned to squares
+  for (const l of film.labels) {
+    const a = clamp((nowS - l.t0) / 0.4, 0, 1) * (l.tOut != null ? 1 - clamp((nowS - l.tOut) / 0.4, 0, 1) : 1);
+    if (a <= 0) continue;
+    const { x, z } = sqToXZ(l.sq);
+    const [sx, sy] = toScreen(x, 0.95, z);
+    const lx = clamp(sx + (sx < FILM_W / 2 ? 150 : -150), 140, FILM_W - 140), ly = clamp(sy - 120, 360, FILM_H - 520);
+    cctx.save(); cctx.globalAlpha = a;
+    withSeed(l.seed + boil, () => roughLine(cctx, sx, sy - 10, lx, ly + 34, 4, 3, 'rgba(194,54,31,0.9)', 1));
+    cctx.font = '700 60px Caveat, cursive'; cctx.lineWidth = 12; cctx.strokeStyle = 'rgba(250,247,239,0.95)';
+    cctx.strokeText(l.text, lx, ly); cctx.fillStyle = 'rgb(194,54,31)'; cctx.fillText(l.text, lx, ly);
+    cctx.restore();
+  }
+
+  // recap checklist
+  if (film.recap) {
+    const r = film.recap, x0 = 110, w = FILM_W - 220, rowH = 84, top = 290, h = 70 + r.list.length * rowH;
+    const k = clamp((nowS - r.t0) / 0.4, 0, 1);
+    sketchBox(cctx, x0, top, w, h, 77 + boil, k);
+    cctx.save(); cctx.globalAlpha = k; cctx.textAlign = 'left';
+    r.list.forEach((item, i) => {
+      const ti = r.t0 + 0.5 + i * 0.9, ki = clamp((nowS - ti) / 0.35, 0, 1);
+      if (ki <= 0) return;
+      const yy = top + 70 + i * rowH;
+      cctx.globalAlpha = k * ki;
+      withSeed(900 + i + boil, () => {
+        roughRect(cctx, x0 + 40, yy - 24, 48, 48, 3, 2, 'rgba(27,26,23,0.9)', 1);
+        const pts = [[x0 + 46, yy], [x0 + 60, yy + 16], [x0 + 92, yy - 30]];
+        cctx.strokeStyle = 'rgba(43,86,184,0.95)'; cctx.lineWidth = 8; cctx.lineCap = 'round'; cctx.lineJoin = 'round';
+        strokePartial(cctx, pts, clamp((nowS - ti - 0.2) / 0.3, 0, 1));
+      });
+      cctx.font = '54px "Patrick Hand", cursive'; cctx.fillStyle = INK_HEX; cctx.fillText(item, x0 + 118, yy + 4);
+    });
+    cctx.restore();
+  }
+
+  // caption card
+  if (b && b.caption) {
+    const k = clamp((nowS - b.start - 0.15) / 0.45, 0, 1);
+    if (k > 0) {
+      cctx.font = '50px "Patrick Hand", cursive'; cctx.textAlign = 'left';
+      const lines = wrapText(cctx, b.caption, FILM_W - 200);
+      const h = 60 + lines.length * 62, x0 = 70, y0 = FILM_H - 130 - h + (1 - k) * 30;
+      sketchBox(cctx, x0, y0, FILM_W - 140, h, b.idx * 13 + boil, k);
+      cctx.save(); cctx.globalAlpha = k; cctx.fillStyle = INK_HEX; cctx.textBaseline = 'top';
+      lines.forEach((ln, i) => cctx.fillText(ln, x0 + 30, y0 + 30 + i * 62));
+      cctx.restore();
+    }
+  }
+  // progress
+  const prog = clamp(nowS / film.comp.duration, 0, 1);
+  withSeed(5 + boil, () => roughLine(cctx, 70, FILM_H - 64, 70 + (FILM_W - 140) * prog, FILM_H - 64, 4, 1.5, 'rgba(27,26,23,0.55)', 1));
+}
+
+/* ------------------------------------------------------------------ *
+ *  Film player: timeline, seeking, preview audio
+ * ------------------------------------------------------------------ */
+const film = {
+  active: false, playing: false, exporting: false, story: null, comp: null, storyId: null,
+  t: 0, acc: 0, beatIdx: -1, actIdx: 0, ticker: null, title: null, recap: null, labels: [], vo: {}, voNodes: [], saved: null,
+  onFrame(dt) {
+    if (this.exporting) return;
+    if (this.playing) {
+      this.acc += dt;
+      let n = 0;
+      while (this.acc >= FILM_DT && n++ < 4) { stepFilm(FILM_DT, true); this.acc -= FILM_DT; }
+      if (this.t >= this.comp.duration) { this.playing = false; updateFilmUI(); }
+    }
+    renderFilmFrame();
+    updateFilmClock();
+  },
+};
+
+function beginBeat(i, live) {
+  const b = film.comp.beats[i];
+  film.beatIdx = i; film.actIdx = 0;
+  const nowS = film.t, nowMs = clock.now();
+  clearAnnots(nowS); clearGhosts(false);
+  for (const l of film.labels) if (l.tOut == null) l.tOut = nowS;
+  film.title = b.title ? { text: b.title, t0: nowS, seed: 300 + i } : null;
+  film.recap = null;
+  if (live) playVO(b, 0);
+  highlightBeat(i);
+}
+function applyAction(a, b, live) {
+  const nowS = film.t, nowMs = clock.now();
+  switch (a.type) {
+    case 'cam': setShot(a.spec, nowMs, a.blend ?? 1.5, a.base); break;
+    case 'annot': addAnnot(a.item, nowS); break;
+    case 'label': film.labels.push({ sq: a.sq, text: a.text, t0: nowS, tOut: null, seed: 500 + film.labels.length }); break;
+    case 'think': { const o = pieces.find((p) => p.square === a.sq); if (o) o.think = { t0: nowMs, dur: a.dur }; break; }
+    case 'clear': clearAnnots(nowS); break;
+    case 'recap': film.recap = { list: a.list, t0: nowS }; break;
+    case 'move': {
+      filmMode.moveDur = a.moveDur;
+      chess.move(a.san);
+      sync(); refreshMarkers();
+      film.ticker = { text: a.ticker, t0: nowS };
+      break;
+    }
+    case 'ghostStart': film.ghostSquares = new Map(); film.ghostGame = null; break;
+    case 'ghostMove': {
+      const mv = a.mv, gs = film.ghostSquares || (film.ghostSquares = new Map());
+      filmMode.moveDur = a.moveDur;
+      const moveOne = (from, to, type, color) => {
+        let o = gs.get(from);
+        if (!o) { o = makeGhost(type, color, from, a.gid); fadeReal(pieces.find((p) => p.square === from), nowMs); }
+        gs.delete(from);
+        const victim = gs.get(to);
+        if (victim) victim.out0 = nowMs; else fadeReal(pieces.find((p) => p.square === to), nowMs);
+        gs.set(to, o);
+        const { x, z } = sqToXZ(to);
+        sendTo(o, new THREE.Vector3(x, 0, z), 1);
+      };
+      moveOne(mv.from, mv.to, mv.piece, mv.color);
+      if (mv.flags.includes('k') || mv.flags.includes('q')) {
+        const r = mv.color === 'w' ? '1' : '8', ks = mv.flags.includes('k');
+        moveOne((ks ? 'h' : 'a') + r, (ks ? 'f' : 'd') + r, 'r', mv.color);
+      }
+      break;
+    }
+    case 'ghostEnd':
+      clearGhosts(false);
+      clearAnnots(nowS, (x) => x.ghost === a.gid);
+      film.ghostSquares = null;
+      break;
+    case 'sfx': if (live && soundOn) { try { const c = audioCtx(); synth(c, c.destination, c.currentTime, a.kind, a.kind === 'pick' ? 0.7 : 1); } catch (e) { /* optional */ } } break;
+  }
+}
+function stepFilm(dt, live) {
+  film.t += dt;
+  clock.t = film.t * 1000;
+  const beats = film.comp.beats;
+  while (film.beatIdx < beats.length - 1 && film.t >= beats[film.beatIdx + 1].start) {
+    flushActions(beats[film.beatIdx], Infinity, live);
+    beginBeat(film.beatIdx + 1, live);
+  }
+  flushActions(beats[film.beatIdx], film.t - beats[film.beatIdx].start, live);
+  updateWorld(dt, clock.t);
+  updateGhosts(clock.t);
+  updateFilmCamera(clock.t);
+}
+function flushActions(b, localT, live) {
+  while (film.actIdx < b.actions.length && b.actions[film.actIdx].t <= localT) applyAction(b.actions[film.actIdx++], b, live);
+}
+function renderFilmFrame() {
+  updateAnnots(film.t);
+  renderer.render(scene, camera);
+  composite();
+}
+
+// Rebuilds the world at the start of the beat containing t, then simulates forward to t.
+function seekFilm(t) {
+  stopVO();
+  const beats = film.comp.beats;
+  t = clamp(t, 0, film.comp.duration - 0.001);
+  let i = beats.findIndex((b) => t < b.start + b.dur);
+  if (i < 0) i = beats.length - 1;
+  const b = beats[i];
+  rand = mulberry32(777 + i);
+  wiggleTime = b.start; boilStep = -1;
+  chess.load(b.fen);
+  for (const o of pieces) { o.think = null; o.wob = 0; }
+  clearGhosts(true);
+  sync({ instant: true });
+  refreshMarkers();
+  annots = []; annotDirty = true; film.labels = [];
+  film.ticker = b.ticker ? { text: b.ticker, t0: -10 } : null;
+  film.t = b.start; clock.t = film.t * 1000;
+  camState.cur = camState.prev = null; camState.theme = 0;
+  beginBeat(i, false);
+  flushActions(b, 0, false);
+  camState.prev = null;
+  updateFilmCamera(clock.t);
+  while (film.t < t - 1e-6) stepFilm(Math.min(FILM_DT, t - film.t), false);
+  if (film.playing) playVO(beats[film.beatIdx], film.t - beats[film.beatIdx].start);
+  renderFilmFrame();
+  updateFilmClock();
+}
+
+// voiceover clips, preview only (the export mixes them offline)
+function playVO(b, offset) {
+  if (!film.playing) return;
+  const buf = film.vo[b.id];
+  if (!buf) return;
+  try {
+    const c = audioCtx(), src = c.createBufferSource();
+    src.buffer = buf; src.connect(c.destination);
+    const startIn = Math.max(0, VO_DELAY - offset), off = Math.max(0, offset - VO_DELAY);
+    if (off < buf.duration) { src.start(c.currentTime + startIn, off); film.voNodes.push(src); }
+  } catch (e) { /* audio optional */ }
+}
+function stopVO() { for (const n of film.voNodes) { try { n.stop(); } catch (e) { /* already stopped */ } } film.voNodes = []; }
+
+/* ------------------------------------------------------------------ *
+ *  Export: deterministic frame-by-frame render → MP4 (Mediabunny)
+ * ------------------------------------------------------------------ */
+async function renderFilmAudio(comp, sampleRate) {
+  const len = Math.ceil((comp.duration + 0.25) * sampleRate);
+  const oac = new OfflineAudioContext(2, len, sampleRate);
+  if (soundOn) for (const b of comp.beats) for (const a of b.actions) if (a.type === 'sfx') synth(oac, oac.destination, b.start + a.t, a.kind, a.kind === 'pick' ? 0.7 : 1);
+  for (const b of comp.beats) {
+    const buf = film.vo[b.id];
+    if (!buf) continue;
+    const src = oac.createBufferSource(); src.buffer = buf; src.connect(oac.destination); src.start(b.start + VO_DELAY);
+  }
+  return oac.startRendering();
+}
+function sliceAudio(buf, from, to) {
+  const n = Math.max(1, to - from), out = new AudioBuffer({ length: n, numberOfChannels: buf.numberOfChannels, sampleRate: buf.sampleRate });
+  for (let c = 0; c < buf.numberOfChannels; c++) out.copyToChannel(buf.getChannelData(c).subarray(from, to), c);
+  return out;
+}
+function download(blob, name) {
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+const filmFileBase = () => film.comp.headers.FilmFile || 'sketch-chess-film';
+
+async function exportFilm() {
+  if (film.exporting) return;
+  const prog = $('fProgress'), bar = prog.querySelector('i'), label = $('fProgText');
+  film.playing = false; stopVO(); updateFilmUI();
+  film.exporting = true; film.cancel = false; prog.hidden = false; $('fExport').disabled = true;
+  const status = (txt, k) => { label.textContent = txt; if (k != null) bar.style.width = (k * 100).toFixed(1) + '%'; };
+  let output = null;
+  try {
+    status('Loading encoder…', 0);
+    if (typeof VideoEncoder === 'undefined') throw new Error('This browser has no WebCodecs video encoder — use a recent Chrome or Edge.');
+    const MB = await import('mediabunny');
+    const comp = film.comp, frames = Math.ceil(comp.duration * FILM_FPS), sr = 48000;
+    status('Mixing audio…', 0);
+    const audio = await renderFilmAudio(comp, sr);
+    const vcodec = await MB.getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width: FILM_W, height: FILM_H });
+    if (!vcodec) throw new Error('No usable video encoder for 1080×1920 in this browser.');
+    const acodec = (await MB.canEncodeAudio('aac', { numberOfChannels: 2, sampleRate: sr })) ? 'aac'
+      : (await MB.canEncodeAudio('opus', { numberOfChannels: 2, sampleRate: sr })) ? 'opus' : null;
+    output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new MB.BufferTarget() });
+    const vsrc = new MB.CanvasSource(compCanvas, { codec: vcodec, bitrate: 8e6, keyFrameInterval: 2 });
+    output.addVideoTrack(vsrc, { frameRate: FILM_FPS });
+    let asrc = null;
+    if (acodec) { asrc = new MB.AudioBufferSource({ codec: acodec, bitrate: 192e3 }); output.addAudioTrack(asrc); }
+    await output.start();
+
+    seekFilm(0);
+    let audioPos = 0;
+    const t0 = performance.now();
+    for (let f = 0; f < frames; f++) {
+      if (film.cancel) throw new Error('cancelled');
+      if (f > 0) stepFilm(FILM_DT, false);
+      renderFilmFrame();
+      await vsrc.add(f / FILM_FPS, 1 / FILM_FPS);
+      // feed audio in one-second slices so the muxer can interleave the tracks
+      const need = Math.min(audio.length, Math.ceil(((f + 1) / FILM_FPS + 1) * sr));
+      if (asrc && need - audioPos >= sr) { await asrc.add(sliceAudio(audio, audioPos, need)); audioPos = need; }
+      if (f % 15 === 0) {
+        const el = (performance.now() - t0) / 1000, rate = (f + 1) / el;
+        status(`Rendering frame ${f + 1} / ${frames} · ${(rate / FILM_FPS).toFixed(2)}× real time`, (f + 1) / frames);
+        updateFilmClock();
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+    if (asrc && audioPos < audio.length) await asrc.add(sliceAudio(audio, audioPos, audio.length));
+    status('Finishing MP4…', 1);
+    await output.finalize();
+    const blob = new Blob([output.target.buffer], { type: 'video/mp4' });
+    download(blob, filmFileBase() + '.mp4');
+    status(`Done — ${(blob.size / 1048576).toFixed(1)} MB, ${fmtTime(comp.duration)} (${vcodec.toUpperCase()}${acodec ? ' + ' + acodec.toUpperCase() : ''})`, 1);
+    film.lastExport = { size: blob.size, vcodec, acodec, frames, blob };
+  } catch (e) {
+    if (output && output.state !== 'finalized') { try { await output.cancel(); } catch (err) { /* ignore */ } }
+    status(e.message === 'cancelled' ? 'Export cancelled.' : 'Export failed: ' + e.message, null);
+    console.error(e);
+  } finally {
+    film.exporting = false; $('fExport').disabled = false;
+    lastT = performance.now();
+  }
+}
+
+function narrationScript() {
+  const c = film.comp, lines = [`${c.headers.FilmHeader || c.headers.Event} — narration script`, `One clip per line, named <id>.mp3 / .wav / .m4a. Target lengths are what the film needs without voiceover; longer clips stretch their beat.`, ''];
+  for (const b of c.beats) if (b.caption) lines.push(`${b.id}  (~${(b.dur - 0.6).toFixed(1)}s)  ${b.caption}`);
+  return lines.join('\n');
+}
+const srtTime = (s) => { const ms = Math.round(s * 1000), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, sec = Math.floor(ms / 1000) % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`; };
+function subtitles() {
+  let n = 0;
+  return film.comp.beats.filter((b) => b.caption).map((b) => `${++n}\n${srtTime(b.start + 0.15)} --> ${srtTime(b.start + b.dur - 0.1)}\n${b.caption}\n`).join('\n');
+}
+
+/* ------------------------------------------------------------------ *
+ *  Film UI: enter / exit, panel, scrubber, voiceover drop
+ * ------------------------------------------------------------------ */
+const STORIES = [...document.querySelectorAll('script[type="text/x-chess-story"]')].map((el) => ({ id: el.id, text: el.textContent }));
+const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+function loadStory(id) {
+  const st = STORIES.find((s) => s.id === id) || STORIES[0];
+  film.storyId = st.id;
+  film.story = parseStory(st.text);
+  recompile();
+}
+function recompile() {
+  film.comp = compileStory(film.story, film.vo);
+  const list = $('fBeats');
+  list.innerHTML = '';
+  film.comp.beats.forEach((b, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${b.id}</b> <span class="t">${fmtTime(b.start)}</span> ${b.title ? `<em>${b.title}</em> ` : ''}<span class="c"></span>${film.vo[b.id] ? ' <span class="vo">♪</span>' : ''}`;
+    li.querySelector('.c').textContent = b.caption ? b.caption.slice(0, 70) + (b.caption.length > 70 ? '…' : '') : '(moves only)';
+    li.onclick = () => seekFilm(b.start);
+    list.appendChild(li);
+  });
+  $('fTitle').textContent = film.comp.headers.FilmHeader || film.storyId;
+  $('fScrub').max = String(Math.round(film.comp.duration * 100));
+}
+function highlightBeat(i) { [...$('fBeats').children].forEach((li, j) => li.classList.toggle('on', j === i)); }
+function updateFilmClock() {
+  if (!film.comp) return;
+  $('fTime').textContent = `${fmtTime(film.t)} / ${fmtTime(film.comp.duration)}`;
+  if (!film.scrubbing) $('fScrub').value = String(Math.round(film.t * 100));
+}
+function updateFilmUI() { $('fPlay').querySelector('.lbl').textContent = film.playing ? 'Pause' : 'Play'; }
+
+let filmSaved = null;
+function enterFilm() {
+  if (film.active) return;
+  if (pending) cancelPromotion();
+  hideModal(overEl); deselect();
+  filmSaved = {
+    moves: chess.history({ verbose: true }).map((m) => ({ from: m.from, to: m.to, promotion: m.promotion })),
+    redo: redoStack.slice(), camPos: camera.position.clone(), target: controls.target.clone(), userMoved: userMovedCamera,
+    lw: lineMats.map((m) => m.linewidth), pr: renderer.getPixelRatio(), wiggleTime,
+  };
+  film.active = true; filmMode.active = true; filmMode.liveSfx = false; clock.virtual = true;
+  controls.enabled = false;
+  document.body.classList.add('filming');
+  $('film').setAttribute('aria-hidden', 'false');
+
+  renderer.setPixelRatio(1); renderer.setSize(FILM_W, FILM_H, false);
+  camera.aspect = FILM_W / FILM_H; camera.fov = CAM_FOV;
+  camera.setViewOffset(FILM_W, FILM_H, 0, FILM_H * 0.06, FILM_W, FILM_H);
+  camera.updateProjectionMatrix();
+  U.uPR.value = 1.6; U.uRes.value.set(FILM_W, FILM_H);
+  outlineA.uniforms.uWidth.value = 3.0; outlineB.uniforms.uWidth.value = 1.5; outlineB.uniforms.uOffset.value.set(2.0, -1.5);
+  lineMats.forEach((m, i) => { m.resolution.set(FILM_W, FILM_H); m.linewidth = filmSaved.lw[i] * 1.6; });
+  annotMesh.visible = true;
+  if (!grainPattern) buildGrain();
+  try { loadStory(film.storyId || STORIES[0].id); } catch (e) { alert('Story error: ' + e.message); exitFilm(); return; }
+  film.playing = false; updateFilmUI();
+  seekFilm(0);
+}
+function exitFilm() {
+  if (!film.active || film.exporting) return;
+  film.playing = false; stopVO();
+  film.active = false; filmMode.active = false; filmMode.liveSfx = true; clock.virtual = false;
+  clearGhosts(true); annots = []; annotDirty = true; updateAnnots(0); annotMesh.visible = false;
+  film.labels = []; film.recap = null;
+  for (const o of pieces) { o.think = null; o.wob = 0; }
+  document.body.classList.remove('filming');
+  $('film').setAttribute('aria-hidden', 'true');
+  camera.clearViewOffset(); camera.fov = 36;
+  lineMats.forEach((m, i) => { m.linewidth = filmSaved.lw[i]; });
+  renderer.setPixelRatio(filmSaved.pr);
+  wiggleTime = filmSaved.wiggleTime;
+  chess.reset();
+  for (const m of filmSaved.moves) chess.move(m);
+  redoStack = filmSaved.redo;
+  sync({ instant: true });
+  userMovedCamera = filmSaved.userMoved;
+  resize();
+  camera.position.copy(filmSaved.camPos); controls.target.copy(filmSaved.target); controls.update();
+  controls.enabled = true;
+  lastT = performance.now();
+  updateUI();
+}
+
+async function loadVoiceFiles(files) {
+  const c = audioCtx();
+  let n = 0;
+  for (const f of files) {
+    const m = f.name.match(/^(.*?)\.(mp3|wav|m4a|aac|ogg|oga|webm|flac)$/i);
+    if (!m) continue;
+    try { film.vo[m[1]] = await c.decodeAudioData(await f.arrayBuffer()); n++; } catch (e) { console.warn('Could not decode', f.name, e); }
+  }
+  const ids = new Set(film.comp.beats.map((b) => b.id));
+  const matched = Object.keys(film.vo).filter((k) => ids.has(k)).length;
+  $('fVoStatus').textContent = `${n} clip${n === 1 ? '' : 's'} loaded · ${matched} of ${film.comp.beats.filter((b) => b.caption).length} beats have voiceover`;
+  const t = film.t;
+  recompile();
+  seekFilm(Math.min(t, film.comp.duration - 0.01));
+}
+
+$('bFilm').onclick = enterFilm;
+$('fExit').onclick = exitFilm;
+$('fPlay').onclick = () => {
+  if (film.exporting) return;
+  if (!film.playing && film.t >= film.comp.duration - 0.05) seekFilm(0);
+  film.playing = !film.playing; film.acc = 0;
+  if (film.playing) { audioCtx(); playVO(film.comp.beats[film.beatIdx], film.t - film.comp.beats[film.beatIdx].start); } else stopVO();
+  updateFilmUI();
+};
+const scrub = $('fScrub');
+scrub.addEventListener('input', () => { film.scrubbing = true; const wasPlaying = film.playing; film.playing = false; seekFilm(scrub.value / 100); film.playing = wasPlaying; });
+scrub.addEventListener('change', () => { film.scrubbing = false; if (film.playing) playVO(film.comp.beats[film.beatIdx], film.t - film.comp.beats[film.beatIdx].start); });
+$('fExport').onclick = exportFilm;
+$('fCancel').onclick = () => { film.cancel = true; };
+$('fScript').onclick = async () => {
+  const txt = narrationScript();
+  try { await navigator.clipboard.writeText(txt); $('fVoStatus').textContent = 'Narration script copied — also downloaded as a .txt file.'; } catch (e) { /* clipboard may be blocked */ }
+  download(new Blob([txt], { type: 'text/plain' }), filmFileBase() + '-narration.txt');
+};
+$('fSrt').onclick = () => download(new Blob([subtitles()], { type: 'text/plain' }), filmFileBase() + '.srt');
+$('fVoInput').addEventListener('change', (e) => loadVoiceFiles([...e.target.files]));
+const drop = $('fDrop');
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => loadVoiceFiles([...e.dataTransfer.files]));
+$('film').querySelector('.film-stage').appendChild(compCanvas);
 
 /* ------------------------------------------------------------------ *
  *  Boot
