@@ -24,7 +24,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 
 ## Film studio
 
-The **Film** button turns an annotated game into a narrated, auto-directed vertical video (1080×1920, 60 fps MP4). It ships with one story: the endgame of **Flohr vs Vidmar, Nottingham 1936**.
+The **Film** button turns an annotated game into a narrated, auto-directed vertical video (1080×1920, 60 fps MP4). It ships with three stories: **The Opera Game** (Morphy, Paris 1858), **The Game of the Century** (Byrne – Fischer, New York 1956) and the endgame of **Flohr vs Vidmar, Nottingham 1936**.
 
 - **Pick a story** from the dropdown, or **Load PGN…** (or drop a `.pgn` on the panel) to film any game. Plain games from Lichess or chessgames.com work as they are; add `{comments}` and tags to narrate and direct them. A file with several games films the first one, and loading the same file again replaces it, so you can edit a story in a text editor and reload. Loaded files last for the session; the app doesn't store them.
 - **Preview**: Play/Pause (Space), scrub, or click a beat (← / → jump between beats). What you preview is exactly what gets recorded.
@@ -54,6 +54,8 @@ A story is a PGN file: load it with **Load PGN…**, or embed it in `index.html`
 | `[%think c1]` | The piece hesitates (lifts and wobbles) before the next move |
 | `( variation )` | Played as a see-through "ghost" line, then crossed out (or ticked with `!`) and rewound |
 | `!` after a move | Slow motion |
+| `[%preview end]` / `[%preview 34]` | Open the beat on a later position of the game (the final position, or the position after that many half-moves), e.g. a title shot of the decisive moment; the next beat sweeps the pieces back |
+| `[%steady]` | Keep this beat's camera: no automatic cut to a low angle on checks |
 | `[%title "…"]`, `[%hold 2]`, `[%speed 1.7]`, `[%timelapse 0.3]`, `[%recap "a\|b\|c"]`, `[%vo id]` | Chapter title, pause, pacing, flip-book run, closing checklist, voiceover clip name |
 
 Built with [Three.js](https://threejs.org) r160, chess.js 1.0.0 and Mediabunny 1.61, loaded from jsDelivr.
