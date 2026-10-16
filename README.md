@@ -37,8 +37,8 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 **✎ Edit story** opens the story editor next to the preview. Everything you do there is written into the story's PGN text, so it all ends up in the file you save.
 
 - **Text**: edit captions, moves and tags; the preview recompiles as you type. If something doesn't parse, the editor names the line and the preview keeps the last working version.
-- **Mark the board**: pick Circle, Arrow, Zone, Cross, Tick or Label and a pencil colour, then click squares on the preview (an arrow takes two clicks). The mark is added at the current moment of the film, after the last move shown.
-- **Camera**: with no tool selected, drag the preview to orbit, right-drag to pan and scroll to zoom. **Use this view** saves that exact view as the camera from this moment on (`[%cam view …]`); **Back to director** discards it.
+- **Mark the board**: pick Circle, Arrow, Zone, Cross, Tick or Label and a pencil colour, then click squares on the preview (an arrow takes two clicks). The mark is added at the current moment of the film, after the last move shown, and appears as that piece lands. **Erase** removes the marks on a square that are showing at that moment.
+- **Camera**: drag the preview to orbit, right-drag to pan and scroll to zoom, whichever tool is selected (a plain click uses the tool). **Use this view** saves that exact view as the camera from this moment on (`[%cam view …]`); **Back to director** discards it.
 - **Save .pgn** downloads the story, **Revert** returns to the version you loaded, and **Undo** (or Ctrl+Z in the text) steps back through every change, including marks and camera views. Esc steps out of a tool or the free camera.
 
 ### Writing a story
