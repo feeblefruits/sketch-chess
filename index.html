@@ -89,6 +89,7 @@
     background-image: repeating-linear-gradient(-55deg, rgba(27, 26, 23, .13) 0 1.5px, transparent 1.5px 6px); }
   .btn:active { transform: rotate(1deg) translateY(1px); }
   .btn:disabled { opacity: .35; cursor: default; transform: none; background-image: none; }
+  .btn.on { background: var(--hl); }
   .btn.off { color: var(--graphite); text-decoration: line-through; text-decoration-thickness: 2px; }
   .btn:focus-visible { outline: 2px dashed var(--blue); outline-offset: 3px; }
 
@@ -261,6 +262,7 @@
   <button class="btn sketch" id="bUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lbl">Undo</span></button>
   <button class="btn sketch" id="bRedo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg><span class="lbl">Redo</span></button>
   <button class="btn sketch" id="bFlip" title="Flip board (F)"><svg viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></svg><span class="lbl">Flip</span></button>
+  <button class="btn sketch" id="bDiagram" aria-pressed="false" title="Diagram view: the board from above with inked symbols (D)"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span class="lbl">Diagram</span></button>
   <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
   <button class="btn sketch" id="bWiggle" title="Toggle line wiggle"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
   <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
@@ -1190,6 +1192,7 @@ let pieceSeed = 1;
 
 function buildPieceMeshes(o) {
   o.group.clear();
+  o.diagFaded = false;
   const g = getGeo(o.type, o.color);
   o.mesh = new THREE.Mesh(g.shade, o.mat); o.mesh.userData.obj = o;
   const hA = new THREE.Mesh(g.outline, outlineA), hB = new THREE.Mesh(g.outline, outlineB);
@@ -1238,6 +1241,89 @@ function sendTo(o, dest, scale, { delay = 0, capture = false, instant = false } 
   const h = capture ? 1.3 : (o.type === 'n' ? 0.7 : 0.3) + Math.min(d, 9) * 0.05;
   o.tween = { from, to: dest.clone(), fromScale: o.scale, toScale: scale, t0: clock.now() + delay * 1000, dur, h, capture, started: false };
   o.baseScale = scale;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Diagram view: seen from straight above, turned pieces all look like rings, so the
+ *  board can swap its 3D pieces for flat, inked diagram symbols. diagram.mix fades
+ *  between the two (0 = 3D pieces, 1 = symbols). The game toggles it; films use it on top shots.
+ * ------------------------------------------------------------------ */
+const diagram = { on: false, mix: 0 };
+const TOKEN_GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+const tokenTex = {};
+function drawTokenTexture(type, color, seed) {
+  const S = 256, c = S / 2, cv = makeCanvas(S), ctx = cv.getContext('2d');
+  const saved = rand; rand = mulberry32(seed);
+  const g = TOKEN_GLYPH[type] + '︎', y = c + S * 0.05;
+  const font = `${Math.round(S * 0.82)}px "Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif`;
+  ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  ctx.lineWidth = S * 0.07; ctx.strokeStyle = 'rgba(250,247,239,0.95)'; ctx.strokeText(g, c, y); // paper halo for dark squares
+  // the symbol, shaded with pencil hatching clipped to its shape
+  const m = makeCanvas(S), mc = m.getContext('2d');
+  mc.font = font; mc.textAlign = 'center'; mc.textBaseline = 'middle';
+  mc.fillStyle = color === 'b' ? 'rgba(27,26,23,0.93)' : PAPER_HEX; mc.fillText(g, c, y);
+  mc.globalCompositeOperation = 'source-atop'; mc.lineCap = 'round';
+  for (let d = -S; d < S * 2; d += color === 'b' ? 11 : 9) {
+    if (color === 'w' && d < S * 0.9) continue; // white: shade one side only
+    mc.strokeStyle = color === 'b' ? 'rgba(250,247,239,0.35)' : 'rgba(27,26,23,0.45)'; mc.lineWidth = color === 'b' ? 1.6 : 2.2;
+    mc.beginPath(); mc.moveTo(d + rj(3), S); mc.lineTo(d - S * 0.6 + rj(3), 0); mc.stroke();
+  }
+  ctx.drawImage(m, 0, 0);
+  // jittery double ink outline
+  ctx.strokeStyle = 'rgba(27,26,23,0.95)'; ctx.lineWidth = S * 0.02; ctx.strokeText(g, c + rj(1.5), y + rj(1.5));
+  ctx.globalAlpha = 0.55; ctx.lineWidth = S * 0.011; ctx.strokeText(g, c + rj(3), y + rj(3)); ctx.globalAlpha = 1;
+  rand = saved;
+  return toTex(cv);
+}
+function buildTokenTextures() {
+  let seed = 7000;
+  for (const color of ['w', 'b']) for (const type of 'pnbrqk') tokenTex[color + type] = [0, 1, 2].map(() => drawTokenTexture(type, color, seed++));
+}
+const tokenGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+const diagHullA = ghostHullMat(outlineA), diagHullB = ghostHullMat(outlineB);
+// fades a 3D piece out (a < 1) using see-through materials; fully opaque pieces use their normal ones
+function setPieceFade(o, a) {
+  const faded = a < 0.999;
+  if (faded !== !!o.diagFaded) {
+    o.diagFaded = faded;
+    // the body keeps writing depth and draws first, so its outline shell only shows at the rim
+    o.mat.transparent = faded; o.mat.needsUpdate = true;
+    o.group.children.forEach((ch, i) => {
+      if (i === 0) ch.renderOrder = faded ? 6 : 0;
+      else if (i === 1) { ch.material = faded ? diagHullA : outlineA; ch.renderOrder = faded ? 7 : 0; }
+      else if (i === 2) { ch.material = faded ? diagHullB : outlineB; ch.renderOrder = faded ? 7 : 0; }
+      else ch.visible = !faded;
+    });
+  }
+  o.mat.uniforms.uOpacity.value = faded ? a : 1;
+  o.group.visible = a > 0.01;
+}
+const camUp = new THREE.Vector3();
+function updateDiagram(dt) {
+  const target = film.active ? (camState.cur && camState.cur.diagram ? 1 : 0) : (diagram.on ? 1 : 0);
+  if (dt > 0) diagram.mix += clamp(target - diagram.mix, -dt / 0.5, dt / 0.5);
+  const m = diagram.mix, pieceA = clamp((0.8 - m) / 0.6, 0, 1), tokA = clamp((m - 0.2) / 0.6, 0, 1); // a true crossfade, no empty board halfway
+  diagHullA.uniforms.uOpacity.value = pieceA ** 2; diagHullB.uniforms.uOpacity.value = pieceA ** 2 * 0.8;
+  // turn the symbols so they read upright on screen, whichever side the camera is on
+  camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  const yaw = Math.atan2(-camUp.x, -camUp.z), v = ((boilStep % VARIANTS) + VARIANTS) % VARIANTS;
+  for (const o of pieces) {
+    if (!o.diagFaded && pieceA >= 0.999 && !o.token) continue;
+    setPieceFade(o, pieceA);
+    if (o.shadow) o.shadow.material.opacity *= pieceA;
+    if (tokA <= 0) { if (o.token) o.token.visible = false; continue; }
+    if (!o.token) {
+      o.token = new THREE.Mesh(tokenGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
+      o.token.renderOrder = 8; scene.add(o.token);
+    }
+    const p = o.group.position, size = 0.95 * o.scale;
+    o.token.material.map = tokenTex[o.color + o.type][v];
+    o.token.material.opacity = tokA;
+    o.token.position.set(p.x, (p.y < 0 ? p.y : p.y * 0.6) + 0.03, p.z); // rises a little when lifted or hopping
+    o.token.scale.set(size, 1, size);
+    o.token.rotation.y = yaw;
+    o.token.visible = true;
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -1525,7 +1611,14 @@ function fitDistance() {
   const halfW = camera.aspect >= 1.1 ? 7.4 : 5.3;
   return clamp(Math.max(halfW / Math.tan(hf / 2), 5.4 / Math.tan(vf / 2)), 9, 40);
 }
-function defaultSpherical(side) { return new THREE.Spherical(fitDistance(), 0.74, side === 'w' ? 0 : Math.PI); }
+// the diagram view looks (almost) straight down; exactly vertical would leave the camera without an up direction
+function defaultSpherical(side) { return new THREE.Spherical(fitDistance() * (diagram.on ? 0.92 : 1), diagram.on ? 0.06 : 0.74, side === 'w' ? 0 : Math.PI); }
+function setDiagram(on) {
+  diagram.on = on;
+  $('bDiagram').classList.toggle('on', on); $('bDiagram').setAttribute('aria-pressed', String(on));
+  controls.maxPolarAngle = on ? 0.12 : 1.42; // in the diagram view, orbiting turns the board instead of tipping it
+  userMovedCamera = false; setView(viewSide, true);
+}
 function setView(side, animate) {
   const s = defaultSpherical(side);
   if (!animate) {
@@ -1661,6 +1754,7 @@ $('bUndo').onclick = undo;
 $('bRedo').onclick = redo;
 $('bFlip').onclick = () => { viewSide = viewSide === 'w' ? 'b' : 'w'; userMovedCamera = false; setView(viewSide, true); };
 $('bView').onclick = () => { userMovedCamera = false; setView(viewSide, true); };
+$('bDiagram').onclick = () => setDiagram(!diagram.on);
 $('bWiggle').onclick = () => { wiggle = !wiggle; $('bWiggle').classList.toggle('off', !wiggle); };
 $('bSound').onclick = () => { soundOn = !soundOn; $('bSound').classList.toggle('off', !soundOn); };
 $('overNew').onclick = newGame;
@@ -1686,6 +1780,7 @@ addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
   else if (!mod && e.key.toLowerCase() === 'f') $('bFlip').onclick();
   else if (!mod && e.key.toLowerCase() === 'c') $('bView').onclick();
+  else if (!mod && e.key.toLowerCase() === 'd') setDiagram(!diagram.on);
 });
 
 /* ------------------------------------------------------------------ *
@@ -1694,6 +1789,7 @@ addEventListener('keydown', (e) => {
 function resize() {
   if (film.active) return; // the film renders at a fixed 1080×1920; CSS scales the preview
   const w = innerWidth, h = innerHeight;
+  $('hint').style.bottom = $('toolbar').offsetHeight + 26 + 'px'; // stay clear of the toolbar, however many rows it wraps to
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   const pr = renderer.getPixelRatio();
@@ -1752,6 +1848,7 @@ function updateWorld(dt, now) {
 
   const t = now / 1000;
   for (const o of pieces) stepPiece(o, dt, now, t);
+  updateDiagram(dt);
   for (const o of ghosts) stepPiece(o, dt, now, t);
 
   for (const pf of puffs) if (pf.visible) {
@@ -1916,6 +2013,7 @@ const quoted = (args) => { const q = args.match(/"([^"]*)"/); return q ? q[1] : 
 function parseCam(args) {
   const tok = args.split(/\s+/).filter(Boolean);
   return { preset: tok[0] || 'frame', squares: tok.filter((x) => SQ_RE.test(x)), side: tok.includes('b') ? 'b' : 'w',
+    diagram: tok.includes('diagram') ? true : tok.includes('3d') ? false : undefined,
     nums: tok.slice(1).filter((x) => /^-?\d*\.?\d+$/.test(x)).map(Number) };
 }
 function tickerText(fenBefore, san, nag) {
@@ -2291,12 +2389,12 @@ function resolveShot(spec, nowMs) {
   // an exact view saved from the studio: [%cam view tx ty tz distance phi theta (drift)]
   if (spec.preset === 'view' && spec.nums && spec.nums.length >= 6) {
     const [tx, ty, tz, r, phi, theta, drift = 0] = spec.nums;
-    return { fixed: { tx, ty, tz, r, phi }, theta: wrapNear(theta, camState.cur ? posePrevTheta() : theta), drift, t0: nowMs, fov: CAM_FOV };
+    return { fixed: { tx, ty, tz, r, phi }, theta: wrapNear(theta, camState.cur ? posePrevTheta() : theta), drift, t0: nowMs, fov: CAM_FOV, diagram: spec.diagram ?? phi < 0.25 };
   }
   const P = SHOTS[spec.preset] || SHOTS.frame;
   let squares = spec.squares && spec.squares.length ? spec.squares : (P.all ? ['a1', 'h1', 'a8', 'h8'] : ['d4', 'e5']);
   if (P.all) squares = ['a1', 'h1', 'a8', 'h8'];
-  const shot = { phi: P.phi, pad: P.pad, drift: P.drift, t0: nowMs, fov: CAM_FOV };
+  const shot = { phi: P.phi, pad: P.pad, drift: P.drift, t0: nowMs, fov: CAM_FOV, diagram: spec.diagram ?? spec.preset === 'top' };
   if (P.follow) {
     shot.follow = squares.map((sq) => pieces.find((o) => o.square === sq)).filter(Boolean);
     if (!shot.follow.length) shot.follow = null;
@@ -2613,6 +2711,7 @@ function seekFilm(t) {
   flushActions(b, 0, false);
   camState.prev = null;
   updateFilmCamera(clock.t);
+  diagram.mix = camState.cur && camState.cur.diagram ? 1 : 0;
   while (film.t < t - 1e-6) stepFilm(Math.min(FILM_DT, t - film.t), false);
   // settle shadows, ghosts and effects on the new positions, so a paused preview (and an export's first frame) is right
   updateWorld(0, clock.t); updateGhosts(clock.t); updateFilmCamera(clock.t);
@@ -3213,6 +3312,7 @@ async function boot() {
     ]);
   } catch (e) { /* fall back to cursive */ }
   buildTextures();
+  buildTokenTextures();
   buildBoard();
   for (const row of chess.board()) for (const c of row) if (c) {
     const o = makePiece(c.type, c.color);

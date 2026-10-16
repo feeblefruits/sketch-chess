@@ -10,6 +10,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 - **Full chess rules** via [chess.js](https://github.com/jhlywa/chess.js): castling, en passant, promotion, check, checkmate and draws.
 - **Interaction** — drag-and-drop or click-to-move, legal-move markers, arcing move animations, captured pieces slide into a tray beside the board, promotion picker with 3D-rendered thumbnails.
 - **Camera** — orbit, pan and zoom (mouse or touch), flip to Black's side, reset view.
+- **Diagram view** — look straight down at the board with the 3D pieces swapped for hand-inked diagram symbols (they crossfade). The symbols stay upright as you turn the board.
 - **UI** — turn indicator, check/mate/draw banners, move log, undo/redo, synthesized pencil sound effects.
 
 ## Controls
@@ -20,6 +21,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 | Orbit / pan / zoom | Drag empty space / right-drag / scroll or pinch |
 | Undo / redo | Ctrl+Z / Ctrl+Y |
 | Flip board / reset camera | F / C |
+| Diagram view on / off | D |
 | Cancel selection or promotion | Esc |
 
 ## Film studio
@@ -47,7 +49,7 @@ A story is a PGN file: load it with **Load PGN…**, or embed it in `index.html`
 
 | Tag | Effect |
 | --- | --- |
-| `[%cam preset squares…]` | Camera shot: `overview`, `top`, `frame`, `closeup`, `low`, `orbit`, `follow` (tracks the pieces on those squares), `profile` (looks along a line of squares). Add `b` to shoot from Black's side. `[%cam view x y z distance phi theta]` holds an exact view (what **Use this view** writes). Without a camera tag, the director frames the beat's moves and drops to a low angle for checks. |
+| `[%cam preset squares…]` | Camera shot: `overview`, `top`, `frame`, `closeup`, `low`, `orbit`, `follow` (tracks the pieces on those squares), `profile` (looks along a line of squares). Add `b` to shoot from Black's side. `top` shots switch to the diagram view (inked symbols); add `3d` to keep the 3D pieces, or `diagram` to use symbols in any shot. `[%cam view x y z distance phi theta]` holds an exact view (what **Use this view** writes). Without a camera tag, the director frames the beat's moves and drops to a low angle for checks. |
 | `[%cal Gd2d4,Rb6d4]` / `[%csl Rd5]` | Pencil arrows / circles that draw themselves on (G graphite, R red, B blue, Y highlighter) |
 | `[%zone Bd4]`, `[%trail Ga7a8]`, `[%cross c5]`, `[%tick e4]` | Hatched square, back-and-forth trail, scribbled-out square, tick |
 | `[%label d5 "isolated"]` | Handwritten label pinned to a square |
