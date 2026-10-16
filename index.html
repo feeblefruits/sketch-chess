@@ -39,7 +39,8 @@
   }
 
   /* hand-drawn box: wobbly double stroke via pseudo elements */
-  .sketch { position: relative; background: rgba(251, 249, 243, .9); }
+  .sketch { position: relative; background: color-mix(in srgb, var(--paper-2) 92%, transparent); }
+  :root[data-colour="on"] { --paper: #f1e4c6; --paper-2: #f8eed6; --hl: rgba(240, 190, 60, .5); }
   .sketch::before, .sketch::after {
     content: ""; position: absolute; pointer-events: none;
     border: 2px solid var(--ink);
@@ -264,6 +265,7 @@
   <button class="btn sketch" id="bFlip" title="Flip board (F)"><svg viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></svg><span class="lbl">Flip</span></button>
   <button class="btn sketch" id="bDiagram" aria-pressed="false" title="Diagram view: the board from above with inked symbols (D)"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span class="lbl">Diagram</span></button>
   <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
+  <button class="btn sketch" id="bColour" aria-pressed="false" title="Colour: ink and wash on a wooden board (K)"><svg viewBox="0 0 24 24"><path d="M12 3c5 0 9 3.6 9 8 0 2.6-2 4-4.2 4H15a2 2 0 0 0-1.4 3.4c.6.7.2 2.6-1.6 2.6-5 0-9-4-9-9s4-9 9-9z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg><span class="lbl">Colour</span></button>
   <button class="btn sketch" id="bWiggle" title="Toggle line wiggle"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
   <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
   <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
@@ -636,8 +638,18 @@ const U = {
   uRes: { value: new THREE.Vector2(1, 1) },
   uLight: { value: new THREE.Vector3(-0.55, 1.0, 0.62).normalize() },
   uInk: { value: new THREE.Vector3(0.106, 0.102, 0.09) },
-  uPaper: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
+  whiteHi: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
+  blackHi: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
+  blackLo: { value: new THREE.Vector3(0.45, 0.44, 0.41) },
 };
+// Pencil (mono) or ink-and-wash colour: a green and cream board in a wooden frame, ivory and charcoal pieces.
+const PALETTES = {
+  mono: { page: '#f8f5ec', ink: [0.106, 0.102, 0.09], whiteHi: [0.98, 0.968, 0.937], blackHi: [0.98, 0.968, 0.937], blackLo: [0.45, 0.44, 0.41],
+    title: '#1b1a17', ticker: '#1b1a17', tokenWhite: '#faf7ef', tokenBlack: 'rgba(27,26,23,0.93)' },
+  colour: { page: '#f1e4c6', ink: [0.13, 0.1, 0.075], whiteHi: [0.97, 0.925, 0.81], blackHi: [0.5, 0.47, 0.43], blackLo: [0.15, 0.14, 0.135],
+    title: '#6e4219', ticker: '#8c2318', tokenWhite: '#f6ecd0', tokenBlack: 'rgba(38,33,30,0.95)' },
+};
+let palette = PALETTES.mono;
 
 /* ------------------------------------------------------------------ *
  *  Shaders: screen-space pencil hatching + jittery inverted-hull ink
@@ -653,7 +665,7 @@ const PIECE_VS = /* glsl */`
   }`;
 
 const PIECE_FS = /* glsl */`
-  uniform vec3 uLight; uniform vec3 uInk; uniform vec3 uPaper;
+  uniform vec3 uLight; uniform vec3 uInk; uniform vec3 uHi; uniform vec3 uLo;
   uniform float uDark; uniform float uTime; uniform float uPR;
   uniform float uGlow; uniform float uSeed; uniform float uOpacity;
   varying vec3 vN; varying vec3 vW;
@@ -697,8 +709,9 @@ const PIECE_FS = /* glsl */`
     // dark pieces keep a paper-white glint where the light skims them
     ink *= 1.0 - uDark * smoothstep(0.25, 0.7, spec) * 0.95;
 
-    vec3 base = uPaper;
-    if (uDark > 0.5) base = mix(uPaper, vec3(0.45, 0.44, 0.41), (0.8 - lam * 0.4) * (1.0 - smoothstep(0.3, 0.8, spec)));
+    // uHi: the piece's lit tone (paper, or ivory in colour); dark pieces shade towards uLo
+    vec3 base = uHi;
+    if (uDark > 0.5) base = mix(uHi, uLo, (0.8 - lam * 0.4) * (1.0 - smoothstep(0.3, 0.8, spec)));
     base -= vnoise(gl_FragCoord.xy / uPR * 0.6) * 0.05;
 
     vec3 col = mix(base, uInk, ink * 0.92);
@@ -748,7 +761,7 @@ const inkMat = new THREE.MeshBasicMaterial({ color: 0x1b1a17 });
 function pieceMaterial(color, seed) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uTime: U.uTime, uPR: U.uPR, uLight: U.uLight, uInk: U.uInk, uPaper: U.uPaper,
+      uTime: U.uTime, uPR: U.uPR, uLight: U.uLight, uInk: U.uInk, uHi: color === 'b' ? U.blackHi : U.whiteHi, uLo: U.blackLo,
       uDark: { value: color === 'b' ? 1 : 0 }, uGlow: { value: 0 }, uSeed: { value: seed }, uOpacity: { value: 1 },
     },
     vertexShader: PIECE_VS, fragmentShader: PIECE_FS,
@@ -905,7 +918,7 @@ function roughCircle(ctx, cx, cy, r, loops, w, color, wob = 0.07) {
 }
 
 // dense, slanted zig-zag scribble that fills a dark square
-function scribbleFill(ctx, x, y, s, strength = 1) {
+function scribbleFill(ctx, x, y, s, strength = 1, rgb = '27,26,23') {
   ctx.save();
   const j = s * 0.035;
   ctx.beginPath();
@@ -917,7 +930,7 @@ function scribbleFill(ctx, x, y, s, strength = 1) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const L = s * 0.78;
   const pass = (gap, lw, alpha) => {
-    ctx.strokeStyle = `rgba(27,26,23,${alpha})`; ctx.lineWidth = lw;
+    ctx.strokeStyle = `rgba(${rgb},${alpha})`; ctx.lineWidth = lw;
     ctx.beginPath();
     let side = -1, py = -L;
     ctx.moveTo(-L, py);
@@ -978,6 +991,74 @@ function drawBoardTexture(seed) {
     label(String(i + 1), o * 0.5, cy, 0, 0.92);
     label(String(i + 1), o + 8 * ppu + o * 0.5, cy, Math.PI, 0.5, fs * 0.85);
   }
+  return toTex(c);
+}
+
+// Colour board: cream and green squares (the green scribbled like the pencil version) in a wooden frame.
+function woodGrain(ctx, x, y, w, h, vertical, base, dark, light) {
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.fillStyle = base; ctx.fillRect(x, y, w, h);
+  const L = vertical ? h : w, D = vertical ? w : h;
+  for (let i = 0; i < D / 3.2; i++) {
+    const off = rand() * D, amp = 2 + rand() * 6, ph = rand() * TAU, fr = 0.002 + rand() * 0.004;
+    ctx.strokeStyle = rand() < 0.75 ? dark : light; ctx.lineWidth = 0.8 + rand() * 2.2; ctx.globalAlpha = 0.25 + rand() * 0.45;
+    ctx.beginPath();
+    for (let q = 0; q <= L; q += 24) {
+      const a = q, b = off + Math.sin(q * fr + ph) * amp;
+      vertical ? (q ? ctx.lineTo(x + b, y + a) : ctx.moveTo(x + b, y + a)) : (q ? ctx.lineTo(x + a, y + b) : ctx.moveTo(x + a, y + b));
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.restore();
+}
+function drawColourBoardTexture(seed) {
+  rand = mulberry32(seed);
+  const S = 2048, ppu = S / BOARD_W, o = MARGIN * ppu;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  // frame: four planks with mitred corners
+  const planks = [[0, 0, S, o, false], [0, S - o, S, o, false], [0, 0, o, S, true], [S - o, 0, o, S, true]];
+  for (const [x, y, w, h, v] of planks) {
+    ctx.save(); ctx.beginPath();
+    if (!v) { const top = y === 0; ctx.moveTo(0, y + (top ? 0 : h)); ctx.lineTo(S, y + (top ? 0 : h)); ctx.lineTo(S - o, top ? o : S - o); ctx.lineTo(o, top ? o : S - o); }
+    else { const left = x === 0; ctx.moveTo(x + (left ? 0 : w), 0); ctx.lineTo(left ? o : S - o, o); ctx.lineTo(left ? o : S - o, S - o); ctx.lineTo(x + (left ? 0 : w), S); }
+    ctx.closePath(); ctx.clip();
+    woodGrain(ctx, x, y, w, h, v, '#b06d35', 'rgb(104,52,20)', 'rgb(222,160,96)');
+    ctx.restore();
+  }
+  for (const [ax, ay, bx, by] of [[0, 0, o, o], [S, 0, S - o, o], [0, S, o, S - o], [S, S, S - o, S - o]]) roughLine(ctx, ax, ay, bx, by, 3, 2, 'rgba(60,30,12,0.7)', 1);
+  // squares
+  for (let f = 0; f < 8; f++) for (let r = 0; r < 8; r++) {
+    const x0 = o + f * ppu, y0 = o + (7 - r) * ppu;
+    if ((f + r) % 2 === 0) {
+      ctx.fillStyle = '#5b8a4f'; ctx.fillRect(x0, y0, ppu + 1, ppu + 1);
+      scribbleFill(ctx, x0, y0, ppu, 0.95, '30,62,32');
+    } else {
+      ctx.fillStyle = '#f1e8cd'; ctx.fillRect(x0, y0, ppu + 1, ppu + 1);
+      if (rand() < 0.35) roughLine(ctx, x0 + ppu * (0.2 + rand() * 0.5), y0 + ppu * (0.3 + rand() * 0.4), x0 + ppu * 0.55, y0 + ppu * 0.25, 1.5, 2, 'rgba(120,90,50,0.2)', 1);
+    }
+  }
+  roughRect(ctx, o - 4, o - 4, 8 * ppu + 8, 8 * ppu + 8, 5, 4, 'rgba(48,26,12,0.9)');
+  roughRect(ctx, 14, 14, S - 28, S - 28, 4, 4, 'rgba(48,26,12,0.8)');
+  const fs = Math.round(ppu * 0.44);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const label = (txt, x, y, rot, alpha, size = fs) => {
+    ctx.save(); ctx.translate(x + rj(2), y + rj(2)); ctx.rotate(rot + rj(0.08));
+    ctx.font = `700 ${size}px Caveat, 'Patrick Hand', cursive`;
+    ctx.fillStyle = `rgba(40,20,8,${alpha})`; ctx.fillText(txt, 0, 0); ctx.restore();
+  };
+  for (let i = 0; i < 8; i++) {
+    const cx = o + (i + 0.5) * ppu, cy = o + (7 - i + 0.5) * ppu;
+    label(FILES[i], cx, o + 8 * ppu + o * 0.5, 0, 0.9);
+    label(FILES[i], cx, o * 0.5, Math.PI, 0.55, fs * 0.85);
+    label(String(i + 1), o * 0.5, cy, 0, 0.9);
+    label(String(i + 1), o + 8 * ppu + o * 0.5, cy, Math.PI, 0.55, fs * 0.85);
+  }
+  return toTex(c);
+}
+function drawWoodSideTexture(seed, shade) {
+  rand = mulberry32(seed);
+  const c = makeCanvas(1024, 64), ctx = c.getContext('2d');
+  woodGrain(ctx, 0, 0, 1024, 64, false, shade ? '#8a5226' : '#a9672f', 'rgb(80,40,15)', 'rgb(205,140,80)');
   return toTex(c);
 }
 
@@ -1100,9 +1181,18 @@ function buildTextures() {
  *  Board
  * ------------------------------------------------------------------ */
 let boardTop, boardLines = [];
+const boardLook = { mono: null, colour: null, mats: null };
+function boardSet(name) {
+  // built on first use: three hand-drawn variants of the top (for the line boil) and two side shades
+  if (!boardLook[name]) boardLook[name] = name === 'colour'
+    ? { top: [0, 1, 2].map((v) => drawColourBoardTexture(1900 + v * 13)), light: drawWoodSideTexture(3, false), dark: drawWoodSideTexture(4, true), base: '#7a4a24' }
+    : { top: boardTex, light: drawSideTexture(1, 1), dark: drawSideTexture(2, 2.2), base: PAPER_HEX };
+  return boardLook[name];
+}
 function buildBoard() {
-  const sideLight = drawSideTexture(1, 1), sideDark = drawSideTexture(2, 2.2), paper = new THREE.MeshBasicMaterial({ color: PAPER_HEX });
-  const mSL = new THREE.MeshBasicMaterial({ map: sideLight }), mSD = new THREE.MeshBasicMaterial({ map: sideDark });
+  const look = boardSet('mono'), paper = new THREE.MeshBasicMaterial({ color: PAPER_HEX });
+  const mSL = new THREE.MeshBasicMaterial({ map: look.light }), mSD = new THREE.MeshBasicMaterial({ map: look.dark });
+  boardLook.mats = { mSL, mSD, paper };
   // +x, -x, +y, -y, +z, -z  (light comes from -x / +z)
   const box = new THREE.Mesh(new THREE.BoxGeometry(BOARD_W, BOARD_H, BOARD_W), [mSD, mSL, paper, paper, mSL, mSD]);
   box.position.y = -BOARD_H / 2;
@@ -1265,7 +1355,7 @@ function drawTokenTexture(type, color, seed) {
   // the symbol, shaded with pencil hatching clipped to its shape
   const m = makeCanvas(S), mc = m.getContext('2d');
   mc.font = font; mc.textAlign = 'center'; mc.textBaseline = 'middle';
-  mc.fillStyle = color === 'b' ? 'rgba(27,26,23,0.93)' : PAPER_HEX; mc.fillText(g, c, y);
+  mc.fillStyle = color === 'b' ? palette.tokenBlack : palette.tokenWhite; mc.fillText(g, c, y);
   mc.globalCompositeOperation = 'source-atop'; mc.lineCap = 'round';
   for (let d = -S; d < S * 2; d += color === 'b' ? 11 : 9) {
     if (color === 'w' && d < S * 0.9) continue; // white: shade one side only
@@ -1776,6 +1866,23 @@ $('bRedo').onclick = redo;
 $('bFlip').onclick = () => { viewSide = viewSide === 'w' ? 'b' : 'w'; userMovedCamera = false; setView(viewSide, true); };
 $('bView').onclick = () => { userMovedCamera = false; setView(viewSide, true); };
 $('bDiagram').onclick = () => setDiagram(!diagram.on);
+// Colour look: swaps the palette for the board, pieces, page, titles, diagram symbols and promotion thumbnails
+function setColour(on) {
+  palette = on ? PALETTES.colour : PALETTES.mono;
+  U.uInk.value.set(...palette.ink); U.whiteHi.value.set(...palette.whiteHi); U.blackHi.value.set(...palette.blackHi); U.blackLo.value.set(...palette.blackLo);
+  const look = boardSet(on ? 'colour' : 'mono');
+  boardTop.material.map = look.top[((boilStep % VARIANTS) + VARIANTS) % VARIANTS]; boardTop.material.needsUpdate = true;
+  boardLook.mats.mSL.map = look.light; boardLook.mats.mSD.map = look.dark; boardLook.mats.paper.color.set(look.base);
+  for (const m of [boardLook.mats.mSL, boardLook.mats.mSD, boardLook.mats.paper]) m.needsUpdate = true;
+  for (const k in tokenTex) tokenTex[k].forEach((t) => t.dispose());
+  buildTokenTextures();
+  makeThumbs();
+  document.documentElement.dataset.colour = on ? 'on' : 'off';
+  $('bColour').classList.toggle('on', on); $('bColour').setAttribute('aria-pressed', String(on));
+  try { localStorage.setItem('sketchChess.colour', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
+  if (film.active) renderFilmFrame();
+}
+$('bColour').onclick = () => setColour(palette !== PALETTES.colour);
 $('bWiggle').onclick = () => { wiggle = !wiggle; $('bWiggle').classList.toggle('off', !wiggle); };
 $('bSound').onclick = () => { soundOn = !soundOn; $('bSound').classList.toggle('off', !soundOn); };
 $('overNew').onclick = newGame;
@@ -1802,6 +1909,7 @@ addEventListener('keydown', (e) => {
   else if (!mod && e.key.toLowerCase() === 'f') $('bFlip').onclick();
   else if (!mod && e.key.toLowerCase() === 'c') $('bView').onclick();
   else if (!mod && e.key.toLowerCase() === 'd') setDiagram(!diagram.on);
+  else if (!mod && e.key.toLowerCase() === 'k') setColour(palette !== PALETTES.colour);
 });
 
 /* ------------------------------------------------------------------ *
@@ -1861,7 +1969,7 @@ function updateWorld(dt, now) {
   if (step !== boilStep) {
     boilStep = step;
     const v = step % VARIANTS;
-    boardTop.material.map = boardTex[v];
+    boardTop.material.map = boardSet(palette === PALETTES.colour ? 'colour' : 'mono').top[v];
     boardLines.meshes[0].geometry = boardLines[v][0];
     boardLines.meshes[1].geometry = boardLines[v][1];
     for (const m of markerPool) if (m.visible) m.material.map = markerTex[m.userData.kind][v];
@@ -2548,7 +2656,7 @@ function composite() {
   const nowS = film.t, boil = Math.floor(wiggleTime * 5) % VARIANTS;
   const b = film.comp.beats[film.beatIdx];
   cctx.globalCompositeOperation = 'source-over'; cctx.globalAlpha = 1;
-  cctx.fillStyle = PAPER_HEX; cctx.fillRect(0, 0, FILM_W, FILM_H);
+  cctx.fillStyle = palette.page; cctx.fillRect(0, 0, FILM_W, FILM_H);
   cctx.drawImage(renderer.domElement, 0, 0, FILM_W, FILM_H);
   cctx.globalCompositeOperation = 'multiply'; cctx.fillStyle = grainPattern; cctx.fillRect(0, 0, FILM_W, FILM_H);
   const vg = cctx.createRadialGradient(FILM_W / 2, FILM_H * 0.45, FILM_H * 0.3, FILM_W / 2, FILM_H * 0.45, FILM_H * 0.75);
@@ -2567,7 +2675,7 @@ function composite() {
   if (film.title) {
     const k = clamp((nowS - film.title.t0) / 0.5, 0, 1);
     cctx.save(); cctx.globalAlpha = k; cctx.translate(FILM_W / 2, y + (1 - k) * 20); cctx.rotate(-0.025);
-    cctx.font = '700 96px Caveat, cursive'; cctx.fillStyle = INK_HEX; cctx.fillText(film.title.text, 0, 0);
+    cctx.font = '700 96px Caveat, cursive'; cctx.fillStyle = palette.title; cctx.fillText(film.title.text, 0, 0);
     const w = Math.min(cctx.measureText(film.title.text).width, 900);
     withSeed(film.title.seed + boil, () => {
       const pts = []; for (let i = 0; i <= 30; i++) pts.push([-w / 2 + w * i / 30, 52 + Math.sin(i * 0.5) * 4 + rj(2)]);
@@ -2582,7 +2690,7 @@ function composite() {
     const k = clamp((nowS - film.ticker.t0) / 0.25, 0, 1), pop = 1 + Math.sin(k * Math.PI) * 0.12;
     cctx.save(); cctx.translate(FILM_W / 2, y); cctx.scale(pop, pop);
     cctx.font = '700 76px Caveat, cursive'; cctx.lineWidth = 12; cctx.strokeStyle = 'rgba(250,247,239,0.9)';
-    cctx.strokeText(film.ticker.text, 0, 0); cctx.fillStyle = INK_HEX; cctx.fillText(film.ticker.text, 0, 0);
+    cctx.strokeText(film.ticker.text, 0, 0); cctx.fillStyle = palette.ticker; cctx.fillText(film.ticker.text, 0, 0);
     cctx.restore();
   }
 
@@ -3492,6 +3600,9 @@ async function boot() {
   }
   resize();
   makeThumbs();
+  let colourPref = false;
+  try { colourPref = localStorage.getItem('sketchChess.colour') === '1'; } catch (e) { /* storage may be blocked */ }
+  if (colourPref) setColour(true);
   updateUI();
   requestAnimationFrame(frame);
   $('loading').classList.add('done');

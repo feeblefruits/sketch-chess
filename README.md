@@ -10,6 +10,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 - **Full chess rules** via [chess.js](https://github.com/jhlywa/chess.js): castling, en passant, promotion, check, checkmate and draws.
 - **Interaction** — drag-and-drop or click-to-move, legal-move markers, arcing move animations, captured pieces slide into a tray beside the board, promotion picker with 3D-rendered thumbnails.
 - **Camera** — orbit, pan and zoom (mouse or touch), flip to Black's side, reset view.
+- **Colour** — switch between the pencil look and ink-and-wash colour: a green and cream board in a wooden frame, ivory and charcoal pieces, parchment page. Applies to the game, films and exports, and is remembered between visits.
 - **Diagram view** — look straight down at the board with the 3D pieces swapped for hand-inked diagram symbols (they crossfade). The symbols stay upright as you turn the board.
 - **UI** — turn indicator, check/mate/draw banners, move log, undo/redo, synthesized pencil sound effects.
 
@@ -22,6 +23,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 | Undo / redo | Ctrl+Z / Ctrl+Y |
 | Flip board / reset camera | F / C |
 | Diagram view on / off | D |
+| Colour on / off | K |
 | Cancel selection or promotion | Esc |
 
 ## Film studio
