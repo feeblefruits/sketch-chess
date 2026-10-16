@@ -40,7 +40,7 @@
 
   /* hand-drawn box: wobbly double stroke via pseudo elements */
   .sketch { position: relative; background: color-mix(in srgb, var(--paper-2) 92%, transparent); }
-  :root[data-colour="on"] { --paper: #f1e4c6; --paper-2: #f8eed6; --hl: rgba(240, 190, 60, .5); }
+  :root[data-colour="on"] { --paper: #f4ebd6; --paper-2: #f9f2e1; --hl: rgba(240, 196, 80, .45); }
   .sketch::before, .sketch::after {
     content: ""; position: absolute; pointer-events: none;
     border: 2px solid var(--ink);
@@ -646,8 +646,8 @@ const U = {
 const PALETTES = {
   mono: { page: '#f8f5ec', ink: [0.106, 0.102, 0.09], whiteHi: [0.98, 0.968, 0.937], blackHi: [0.98, 0.968, 0.937], blackLo: [0.45, 0.44, 0.41],
     title: '#1b1a17', ticker: '#1b1a17', tokenWhite: '#faf7ef', tokenBlack: 'rgba(27,26,23,0.93)' },
-  colour: { page: '#f1e4c6', ink: [0.13, 0.1, 0.075], whiteHi: [0.97, 0.925, 0.81], blackHi: [0.5, 0.47, 0.43], blackLo: [0.15, 0.14, 0.135],
-    title: '#6e4219', ticker: '#8c2318', tokenWhite: '#f6ecd0', tokenBlack: 'rgba(38,33,30,0.95)' },
+  colour: { page: '#f4ebd6', ink: [0.2, 0.155, 0.115], whiteHi: [0.975, 0.945, 0.86], blackHi: [0.6, 0.565, 0.52], blackLo: [0.25, 0.235, 0.22],
+    title: '#7f5733', ticker: '#a04634', tokenWhite: '#f7efda', tokenBlack: 'rgba(58,50,44,0.92)' },
 };
 let palette = PALETTES.mono;
 
@@ -1001,7 +1001,7 @@ function woodGrain(ctx, x, y, w, h, vertical, base, dark, light) {
   const L = vertical ? h : w, D = vertical ? w : h;
   for (let i = 0; i < D / 3.2; i++) {
     const off = rand() * D, amp = 2 + rand() * 6, ph = rand() * TAU, fr = 0.002 + rand() * 0.004;
-    ctx.strokeStyle = rand() < 0.75 ? dark : light; ctx.lineWidth = 0.8 + rand() * 2.2; ctx.globalAlpha = 0.25 + rand() * 0.45;
+    ctx.strokeStyle = rand() < 0.75 ? dark : light; ctx.lineWidth = 0.8 + rand() * 2; ctx.globalAlpha = 0.16 + rand() * 0.28;
     ctx.beginPath();
     for (let q = 0; q <= L; q += 24) {
       const a = q, b = off + Math.sin(q * fr + ph) * amp;
@@ -1022,29 +1022,29 @@ function drawColourBoardTexture(seed) {
     if (!v) { const top = y === 0; ctx.moveTo(0, y + (top ? 0 : h)); ctx.lineTo(S, y + (top ? 0 : h)); ctx.lineTo(S - o, top ? o : S - o); ctx.lineTo(o, top ? o : S - o); }
     else { const left = x === 0; ctx.moveTo(x + (left ? 0 : w), 0); ctx.lineTo(left ? o : S - o, o); ctx.lineTo(left ? o : S - o, S - o); ctx.lineTo(x + (left ? 0 : w), S); }
     ctx.closePath(); ctx.clip();
-    woodGrain(ctx, x, y, w, h, v, '#b06d35', 'rgb(104,52,20)', 'rgb(222,160,96)');
+    woodGrain(ctx, x, y, w, h, v, '#c39466', 'rgb(138,92,56)', 'rgb(232,196,156)');
     ctx.restore();
   }
-  for (const [ax, ay, bx, by] of [[0, 0, o, o], [S, 0, S - o, o], [0, S, o, S - o], [S, S, S - o, S - o]]) roughLine(ctx, ax, ay, bx, by, 3, 2, 'rgba(60,30,12,0.7)', 1);
+  for (const [ax, ay, bx, by] of [[0, 0, o, o], [S, 0, S - o, o], [0, S, o, S - o], [S, S, S - o, S - o]]) roughLine(ctx, ax, ay, bx, by, 3, 2, 'rgba(90,58,32,0.5)', 1);
   // squares
   for (let f = 0; f < 8; f++) for (let r = 0; r < 8; r++) {
     const x0 = o + f * ppu, y0 = o + (7 - r) * ppu;
     if ((f + r) % 2 === 0) {
-      ctx.fillStyle = '#5b8a4f'; ctx.fillRect(x0, y0, ppu + 1, ppu + 1);
-      scribbleFill(ctx, x0, y0, ppu, 0.95, '30,62,32');
+      ctx.fillStyle = '#86a476'; ctx.fillRect(x0, y0, ppu + 1, ppu + 1);
+      scribbleFill(ctx, x0, y0, ppu, 0.7, '58,90,56');
     } else {
-      ctx.fillStyle = '#f1e8cd'; ctx.fillRect(x0, y0, ppu + 1, ppu + 1);
+      ctx.fillStyle = '#f5eedb'; ctx.fillRect(x0, y0, ppu + 1, ppu + 1);
       if (rand() < 0.35) roughLine(ctx, x0 + ppu * (0.2 + rand() * 0.5), y0 + ppu * (0.3 + rand() * 0.4), x0 + ppu * 0.55, y0 + ppu * 0.25, 1.5, 2, 'rgba(120,90,50,0.2)', 1);
     }
   }
-  roughRect(ctx, o - 4, o - 4, 8 * ppu + 8, 8 * ppu + 8, 5, 4, 'rgba(48,26,12,0.9)');
-  roughRect(ctx, 14, 14, S - 28, S - 28, 4, 4, 'rgba(48,26,12,0.8)');
+  roughRect(ctx, o - 4, o - 4, 8 * ppu + 8, 8 * ppu + 8, 5, 4, 'rgba(78,50,28,0.72)');
+  roughRect(ctx, 14, 14, S - 28, S - 28, 4, 4, 'rgba(78,50,28,0.6)');
   const fs = Math.round(ppu * 0.44);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const label = (txt, x, y, rot, alpha, size = fs) => {
     ctx.save(); ctx.translate(x + rj(2), y + rj(2)); ctx.rotate(rot + rj(0.08));
     ctx.font = `700 ${size}px Caveat, 'Patrick Hand', cursive`;
-    ctx.fillStyle = `rgba(40,20,8,${alpha})`; ctx.fillText(txt, 0, 0); ctx.restore();
+    ctx.fillStyle = `rgba(66,40,20,${alpha * 0.9})`; ctx.fillText(txt, 0, 0); ctx.restore();
   };
   for (let i = 0; i < 8; i++) {
     const cx = o + (i + 0.5) * ppu, cy = o + (7 - i + 0.5) * ppu;
@@ -1058,7 +1058,7 @@ function drawColourBoardTexture(seed) {
 function drawWoodSideTexture(seed, shade) {
   rand = mulberry32(seed);
   const c = makeCanvas(1024, 64), ctx = c.getContext('2d');
-  woodGrain(ctx, 0, 0, 1024, 64, false, shade ? '#8a5226' : '#a9672f', 'rgb(80,40,15)', 'rgb(205,140,80)');
+  woodGrain(ctx, 0, 0, 1024, 64, false, shade ? '#a8784e' : '#bf9064', 'rgb(118,78,46)', 'rgb(226,188,148)');
   return toTex(c);
 }
 
@@ -1185,7 +1185,7 @@ const boardLook = { mono: null, colour: null, mats: null };
 function boardSet(name) {
   // built on first use: three hand-drawn variants of the top (for the line boil) and two side shades
   if (!boardLook[name]) boardLook[name] = name === 'colour'
-    ? { top: [0, 1, 2].map((v) => drawColourBoardTexture(1900 + v * 13)), light: drawWoodSideTexture(3, false), dark: drawWoodSideTexture(4, true), base: '#7a4a24' }
+    ? { top: [0, 1, 2].map((v) => drawColourBoardTexture(1900 + v * 13)), light: drawWoodSideTexture(3, false), dark: drawWoodSideTexture(4, true), base: '#9a704c' }
     : { top: boardTex, light: drawSideTexture(1, 1), dark: drawSideTexture(2, 2.2), base: PAPER_HEX };
   return boardLook[name];
 }
