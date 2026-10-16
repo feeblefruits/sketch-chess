@@ -64,3 +64,5 @@ A story is a PGN file (optionally with `[Evals "0.20,0.35,#-3,…"]`, one engine
 | `[%title "…"]`, `[%hold 2]`, `[%speed 1.7]`, `[%timelapse 0.3]`, `[%recap "a\|b\|c"]`, `[%vo id]` | Chapter title, pause, pacing, flip-book run, closing checklist, voiceover clip name |
 
 Built with [Three.js](https://threejs.org) r160, chess.js 1.0.0 and Mediabunny 1.61, loaded from jsDelivr.
+
+Sound effects: wooden impact recordings from Kenney's [Impact Sounds](https://kenney.nl/assets/impact-sounds) pack (CC0, public domain), trimmed and embedded in the page. Thanks, Kenney!
