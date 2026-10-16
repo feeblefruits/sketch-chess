@@ -33,6 +33,7 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 - **Export MP4** renders frame by frame on a virtual clock, so playback speed doesn't matter, and encodes H.264 + AAC in the browser with WebCodecs ([Mediabunny](https://mediabunny.dev)). Use a recent Chrome or Edge.
 - **Voiceover**: "Narration script" copies and downloads one line per beat (`vo-01`, `vo-02`, …). Record or generate a clip per line, name it to match (`vo-03.mp3`), and drop the clips on the panel. Each beat stretches to fit its clip, and the clips are mixed into the export.
 - **Subtitles .srt** downloads captions timed to the film.
+- **Evaluation wave**: the timeline at the bottom of the film is a sideways evaluation bar that rises when White is better and dips (with Black's share hatched) when Black is; what has been played is inked, the rest is a faint preview. The built-in films include engine evaluations. **Analyse** works them out for any other story with Stockfish in the browser (about a minute for a long game) and writes them into the story as an `[Evals]` header; Lichess PGNs that already contain `[%eval]` comments work as they are.
 
 ### Editing in the studio
 
@@ -45,7 +46,7 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 
 ### Writing a story
 
-A story is a PGN file: load it with **Load PGN…**, or embed it in `index.html` as a `<script type="text/x-chess-story" id="…">` block to make it a built-in choice in the dropdown. `[FilmHeader "…"]` and `[FilmFile "…"]` set the on-screen header and the export filename; otherwise they come from the White, Black, Event and Date tags. A comment with text opens a *beat*: it becomes a caption card and one narration line, and the moves after it play while it is on screen. Tags inside comments direct the film:
+A story is a PGN file (optionally with `[Evals "0.20,0.35,#-3,…"]`, one engine evaluation per position from White's point of view, starting with the initial position): load it with **Load PGN…**, or embed it in `index.html` as a `<script type="text/x-chess-story" id="…">` block to make it a built-in choice in the dropdown. `[FilmHeader "…"]` and `[FilmFile "…"]` set the on-screen header and the export filename; otherwise they come from the White, Black, Event and Date tags. A comment with text opens a *beat*: it becomes a caption card and one narration line, and the moves after it play while it is on screen. Tags inside comments direct the film:
 
 | Tag | Effect |
 | --- | --- |

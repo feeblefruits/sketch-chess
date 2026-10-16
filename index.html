@@ -351,6 +351,7 @@
     <div class="frow">
       <button class="btn sketch" id="fScript" title="Copy + download the narration script">Narration script</button>
       <button class="btn sketch" id="fSrt" title="Download subtitles">Subtitles .srt</button>
+      <button class="btn sketch" id="fAnalyse" title="Work out an engine evaluation for every position, for the evaluation wave at the bottom of the film">Analyse</button>
     </div>
     <button class="btn sketch" id="fExport">Export MP4 · 1080×1920</button>
     <div id="fProgress" hidden><div class="fbar"><i></i></div><span id="fProgText"></span> <button class="btn sketch" id="fCancel">Cancel</button></div>
@@ -377,6 +378,7 @@
 [ECO "D62"]
 [FilmHeader "Flohr – Vidmar · Nottingham 1936"]
 [FilmFile "flohr-vidmar-1936"]
+[Evals "0.79,-0.39,0.61,0.11,0.44,0.15,0.58,0.06,0.62,0.04,0.46,0.04,1.00,-0.30,0.36,-0.41,0.37,-0.35,0.34,0.12,0.78,0.07,0.62,0.24,0.51,0.28,0.61,0.24,0.48,0.20,0.70,0.18,0.53,0.06,0.51,0.10,0.78,0.01,0.30,-0.15,0.58,0.68,0.41,0.39,0.67,0.09,0.83,0.33,0.78,0.14,0.49,0.27,0.34,0.00,0.64,0.00,0.35,0.14,0.77,0.53,0.90,0.14,0.84,0.67,0.87,0.69,0.63,0.79,0.90,0.55,0.97,0.52,0.74,0.63,0.76,0.10,0.70,0.60,0.69,0.50,0.71,1.04,1.26,1.14,0.87,1.14,1.40,1.16,1.53,1.89,1.67,1.85,1.39,0.97,2.04,1.09,2.09,1.95,2.16,2.16,2.16,1.79,2.86,2.47,3.20,3.21,3.50,3.21,3.80,3.67,4.27,3.74,4.09,4.18,4.45,4.59"]
 
 { [%title "Nottingham, 1936"] [%cam orbit a1 h1 a8 h8] [%hold 1.5]
   Salo Flohr has White against Milan Vidmar. Watch how a small edge becomes a win, one patient step at a time. }
@@ -455,6 +457,7 @@
 [ECO "C41"]
 [FilmHeader "Morphy – Duke Karl & Count Isouard · Paris 1858"]
 [FilmFile "opera-game-1858"]
+[Evals "0.79,0.12,0.79,0.18,0.64,0.36,1.30,0.69,1.82,1.35,1.62,0.94,2.10,1.53,2.04,1.71,2.49,1.62,3.37,2.59,7.01,6.93,7.37,7.02,7.30,7.17,7.49,8.62,12.38,12.48,#2,#1,#1,#0"]
 
 { [%title "The Opera Game"] [%preview end] [%cam closeup d8 e8 g5 b] [%csl Rd8] [%cal Rg5d8]
   Paris, 1858. During a night at the opera, Paul Morphy plays the Duke of Brunswick and Count Isouard together. Seventeen moves later, the game ends like this. [%hold 1.5] }
@@ -500,6 +503,7 @@
 [ECO "D92"]
 [FilmHeader "Byrne – Fischer · New York 1956"]
 [FilmFile "game-of-the-century-1956"]
+[Evals "0.79,0.13,0.38,0.03,0.88,0.26,0.75,0.34,1.33,-0.09,0.72,-0.55,0.03,-0.54,0.93,-0.07,1.00,0.55,1.07,-0.01,0.53,-2.04,-1.77,-1.95,-1.77,-1.90,-2.05,-2.41,-1.74,-2.48,-1.52,-1.89,0.75,-0.62,-1.64,-5.44,-4.74,-6.06,-5.51,-6.00,-6.37,-6.83,-6.17,-6.86,-6.69,-6.75,-6.95,-6.95,-7.08,-7.50,-8.00,-8.92,-8.79,-9.17,-7.89,-9.25,-9.30,-9.95,-9.64,-10.33,-10.46,-11.75,-10.01,-12.76,-9.85,-9.76,-10.63,-11.69,-11.49,-16.71,-16.55,#-6,#-5,#-4,#-4,#-4,#-3,#-3,#-2,#-2,#-1,#-1,#-0"]
 
 { [%title "The Game of the Century"] [%preview 34] [%cam closeup e6 b6 c5 f1 b] [%csl Rb6] [%label b6 "queen left hanging"]
   New York, 1956. Thirteen-year-old Bobby Fischer has Black against Donald Byrne. After his 17th move his queen is attacked, and he leaves it there on purpose. [%hold 1.5] }
@@ -2020,6 +2024,36 @@ function tickerText(fenBefore, san, nag) {
   const [, turn, , , , full] = fenBefore.split(' ');
   return `${full}${turn === 'w' ? '.' : '…'} ${san}${nag}`;
 }
+// Engine evaluations, White's point of view: [Evals "0.20,0.35,#-3,…"] (value 0 = the starting position,
+// then one per half-move) or Lichess-style [%eval 0.35] comments after moves. '#n' is mate in n.
+function evalValue(x) {
+  x = String(x).trim();
+  if (x.startsWith('#')) return x.includes('-') ? -Infinity : Infinity;
+  const v = parseFloat(x);
+  return Number.isFinite(v) ? v : null;
+}
+function parseEvals(header) {
+  const out = [];
+  if (header) header.split(',').forEach((x, i) => { const v = evalValue(x); if (v != null) out[i] = v; });
+  return out;
+}
+// Squashes an evaluation into -1 (Black winning) … +1 (White winning), like a win-chance meter.
+const evalToWave = (v) => (v === Infinity ? 1 : v === -Infinity ? -1 : 2 / (1 + Math.exp(-0.75 * v)) - 1);
+// Turns per-ply evaluations into points on the film's timeline: each value takes over as its move lands.
+function evalTimeline(beats, evals, plies, duration) {
+  if (!evals.some((v) => v != null)) return null;
+  const raw = (i) => { for (let k = clamp(i, 0, plies); k >= 0; k--) if (evals[k] != null) return evalToWave(evals[k]); return 0; };
+  // a light smoothing evens out the engine's side-to-move wobble, so the wave shows the real swings
+  const at = (i) => (i <= 0 || i >= plies ? raw(i) : (raw(i - 1) + 2 * raw(i) + raw(i + 1)) / 4);
+  const pts = [];
+  for (const b of beats) {
+    const startPly = b.preview ? (b.preview === 'end' ? plies : clamp(parseInt(b.preview, 10) || 1, 1, plies)) : b.ply0;
+    pts.push({ t: b.start, v: at(startPly) });
+    for (const a of b.actions) if (a.type === 'move') pts.push({ t: b.start + a.t + a.moveDur, v: at(a.ply) });
+  }
+  pts.push({ t: duration, v: pts.length ? pts[pts.length - 1].v : 0 });
+  return pts;
+}
 function kingSquare(game, color) {
   for (const row of game.board()) for (const c of row) if (c && c.type === 'k' && c.color === color) return c.square;
   return null;
@@ -2033,7 +2067,7 @@ function compileStory(story, vo = {}) {
   const openBeat = (caption, tags, open = null) => {
     beat = { idx: beats.length, id: 'vo-' + String(beats.length + 1).padStart(2, '0'), caption, title: null, fen: g.fen(),
       ticker: beats.length ? beats[beats.length - 1].lastTicker : null, lastTicker: null, timelapse: 0, speed: 1, items: [],
-      open, firstMoveStart: null };
+      open, firstMoveStart: null, ply0: ply };
     for (const t of tags) {
       if (t.k === 'title') beat.title = quoted(t.args);
       else if (t.k === 'timelapse') beat.timelapse = parseFloat(t.args) || 0.3;
@@ -2053,8 +2087,11 @@ function compileStory(story, vo = {}) {
     }
     return out;
   };
+  const evals = parseEvals(story.headers.Evals);
   for (const n of story.root) {
     if (n.type === 'comment') {
+      const ev = n.tags.find((t) => t.k === 'eval');
+      if (ev) evals[ply] = evalValue(ev.args);
       const opens = n.text || n.tags.some((t) => t.k === 'title');
       if (opens) openBeat(n.text, n.tags, { start: n.start, end: n.end });
       else if (!beat) openBeat('', []);
@@ -2069,7 +2106,7 @@ function compileStory(story, vo = {}) {
       const ticker = tickerText(before, mv.san, n.nag);
       beat.lastTicker = ticker;
       beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
-        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), end: n.end });
+        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), end: n.end, ply });
     }
   }
   // a [%preview ply|end] beat shows a later position of the game; the next beat sweeps the pieces back
@@ -2158,7 +2195,7 @@ function compileStory(story, vo = {}) {
         A.push({ t: t + slot + 0.4, type: 'cam', spec: { preset: 'restore' }, blend: 1.3 });
         slot += 0.6;
       }
-      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15 });
+      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply });
       landT = t + moveDur + 0.15;
       A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
       if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
@@ -2177,7 +2214,7 @@ function compileStory(story, vo = {}) {
     b.squares = [...squares];
     start += b.dur;
   }
-  return { headers: story.headers, beats, duration: start, plies: ply, finalFen: g.fen() };
+  return { headers: story.headers, beats, duration: start, plies: ply, finalFen: g.fen(), evalPts: evalTimeline(beats, evals, ply, start) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -2581,9 +2618,66 @@ function composite() {
       cctx.restore();
     }
   }
-  // progress
+  // progress: an evaluation wave when the story has engine evaluations, otherwise a plain pencil line
   const prog = clamp(nowS / film.comp.duration, 0, 1);
-  withSeed(5 + boil, () => roughLine(cctx, 70, FILM_H - 64, 70 + (FILM_W - 140) * prog, FILM_H - 64, 4, 1.5, 'rgba(27,26,23,0.55)', 1));
+  if (film.comp.evalPts) drawEvalWave(prog, boil);
+  else withSeed(5 + boil, () => roughLine(cctx, 70, FILM_H - 64, 70 + (FILM_W - 140) * prog, FILM_H - 64, 4, 1.5, 'rgba(27,26,23,0.55)', 1));
+}
+
+// The film's timeline as a sideways evaluation bar: the curve rises when White is better and dips when Black is;
+// Black's share is hatched. What has been played is inked, the rest is a faint preview.
+const WAVE = { x0: 70, x1: FILM_W - 70, mid: FILM_H - 66, amp: 24, n: 240 };
+function waveSamples(comp) {
+  if (comp._wave) return comp._wave;
+  const pts = comp.evalPts, out = new Float32Array(WAVE.n + 1);
+  let j = 0;
+  for (let i = 0; i <= WAVE.n; i++) {
+    const t = (i / WAVE.n) * comp.duration;
+    while (j < pts.length - 1 && pts[j + 1].t <= t) j++;
+    const prev = j > 0 ? pts[j - 1].v : pts[0].v, k = clamp((t - pts[j].t) / 0.6, 0, 1); // ease into each new value
+    out[i] = prev + (pts[j].v - prev) * ease(k);
+  }
+  return (comp._wave = out);
+}
+function drawEvalWave(prog, boil) {
+  const S = waveSamples(film.comp), { x0, x1, mid, amp, n } = WAVE, top = mid - amp - 4, bottom = mid + amp + 4;
+  const X = (i) => x0 + (x1 - x0) * (i / n), Y = (i) => mid - S[i] * amp;
+  const head = Math.round(prog * n), hx = x0 + (x1 - x0) * prog;
+  withSeed(11 + boil, () => {
+    cctx.save();
+    cctx.lineCap = 'round'; cctx.lineJoin = 'round';
+    // Black's share: between the top of the band and the curve, hatched (darker where already played)
+    for (const [from, to, alpha] of [[0, head, 0.42], [head, n, 0.12]]) {
+      if (to <= from) continue;
+      cctx.save(); cctx.beginPath(); cctx.moveTo(X(from), top);
+      for (let i = from; i <= to; i++) cctx.lineTo(X(i), Y(i));
+      cctx.lineTo(X(to), top); cctx.closePath(); cctx.clip();
+      cctx.strokeStyle = `rgba(27,26,23,${alpha})`; cctx.lineWidth = 1.6;
+      for (let x = X(from) - 40; x < X(to) + 40; x += 7 + rand() * 3) { cctx.beginPath(); cctx.moveTo(x + rj(1.5), bottom); cctx.lineTo(x + 26 + rj(2), top); cctx.stroke(); }
+      cctx.restore();
+    }
+    // even-game line, band edges
+    cctx.setLineDash([6, 9]); cctx.strokeStyle = 'rgba(27,26,23,0.25)'; cctx.lineWidth = 1.5;
+    cctx.beginPath(); cctx.moveTo(x0, mid); cctx.lineTo(x1, mid); cctx.stroke(); cctx.setLineDash([]);
+    roughLine(cctx, x0, top, x1, top, 1.6, 1.2, 'rgba(27,26,23,0.3)', 1);
+    roughLine(cctx, x0, bottom, x1, bottom, 1.6, 1.2, 'rgba(27,26,23,0.3)', 1);
+    // the curve: inked up to now, faint after
+    for (const [from, to, alpha, w] of [[0, head, 0.85, 3], [head, n, 0.25, 2]]) {
+      if (to <= from) continue;
+      cctx.strokeStyle = `rgba(27,26,23,${alpha})`; cctx.lineWidth = w;
+      cctx.beginPath(); cctx.moveTo(X(from), Y(from) + rj(0.8));
+      for (let i = from + 1; i <= to; i++) cctx.lineTo(X(i), Y(i) + rj(0.8));
+      cctx.stroke();
+    }
+    // playhead in red pencil
+    const hy = mid - S[Math.min(n, head)] * amp;
+    roughLine(cctx, hx, top - 6, hx, bottom + 6, 2.6, 1, 'rgba(194,54,31,0.85)', 1);
+    cctx.fillStyle = 'rgb(194,54,31)'; cctx.beginPath(); cctx.arc(hx, hy, 6, 0, TAU); cctx.fill();
+    // tiny key: black's side up, white's side down
+    cctx.font = '24px "Apple Symbols","Segoe UI Symbol",serif'; cctx.textAlign = 'right'; cctx.textBaseline = 'middle';
+    cctx.fillStyle = 'rgba(27,26,23,0.55)'; cctx.fillText('♚\uFE0E', x0 - 10, top + 8); cctx.fillText('♔\uFE0E', x0 - 10, bottom - 8);
+    cctx.restore();
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -3264,6 +3358,66 @@ $('fUndo').onclick = () => { filmText.focus(); document.execCommand('undo'); };
 addEventListener('beforeunload', (e) => {
   if (STORIES.some((st) => st.text !== st.savedText) || (film.editing && currentStory() && filmText.value !== currentStory().savedText)) { e.preventDefault(); e.returnValue = ''; }
 });
+
+/* ------------------------------------------------------------------ *
+ *  Analyse: Stockfish (asm.js, in a worker) evaluates every position of the main line;
+ *  the results go into the story as an [Evals "…"] header, so films stay deterministic.
+ * ------------------------------------------------------------------ */
+const ENGINE_URL = 'https://cdn.jsdelivr.net/npm/stockfish@10.0.2/src/stockfish.asm.js';
+let analysing = null;
+function writeEvalsHeader(list) {
+  const base = film.compiledText, line = `[Evals "${list}"]`;
+  let start, end, insert = line;
+  const m = base.match(/^\[Evals\s+"[^"]*"\][ \t]*$/m);
+  if (m) { start = m.index; end = m.index + m[0].length; }
+  else { // right after the header block at the top
+    let pos = 0, after = 0;
+    for (const ln of base.split('\n')) {
+      if (/^\s*\[\w+\s+"[^"]*"\]\s*$/.test(ln)) after = pos + ln.length + 1; else if (ln.trim()) break;
+      pos += ln.length + 1;
+    }
+    start = end = Math.min(after, base.length); insert = line + '\n';
+  }
+  if (film.editing) return replaceStoryRange(start, end, insert);
+  return applyStoryText(base.slice(0, start) + insert + base.slice(end));
+}
+async function analyseStory() {
+  if (analysing) { analysing.cancel = true; return; }
+  if (film.editing && filmText.value !== film.compiledText) { storyNote('Fix the story error first, then analyse.', true); return; }
+  const g = new Chess(film.story.headers.FEN || undefined), fens = [g.fen()];
+  for (const n of film.story.root) if (n.type === 'move') { g.move(n.san); fens.push(g.fen()); }
+  const job = (analysing = { cancel: false, err: null }), storyAtStart = film.storyId;
+  const worker = new Worker(URL.createObjectURL(new Blob([`importScripts('${ENGINE_URL}');`], { type: 'application/javascript' })));
+  let listener = null;
+  worker.onmessage = (e) => listener && listener(String(e.data));
+  worker.onerror = () => { job.err = "couldn't load the engine (are you online?)"; job.cancel = true; listener && listener('bestmove (none)'); };
+  const ask = (fen) => new Promise((res) => {
+    let last = null;
+    // skip provisional 'lowerbound' / 'upperbound' scores; the last exact score at the final depth is the one
+    listener = (l) => { const mm = l.match(/ depth \d+ .*score (cp|mate) (-?\d+)(?! (?:lower|upper)bound)/); if (mm && !/bound/.test(l)) last = mm; if (l.startsWith('bestmove')) res(last); };
+    worker.postMessage('position fen ' + fen); worker.postMessage('go depth 14');
+  });
+  worker.postMessage('uci');
+  $('fAnalyse').textContent = 'Stop analysis';
+  const vals = [];
+  try {
+    for (let i = 0; i < fens.length; i++) {
+      if (job.cancel || film.storyId !== storyAtStart) throw new Error(job.err || 'stopped');
+      storyNote(`Analysing with Stockfish… ${i + 1} / ${fens.length}`);
+      const gi = new Chess(fens[i]);
+      if (gi.isCheckmate()) { vals.push(gi.turn() === 'w' ? '#-0' : '#0'); continue; }
+      if (gi.isDraw()) { vals.push('0.00'); continue; }
+      const res = await ask(fens[i]), sign = gi.turn() === 'w' ? 1 : -1; // engine scores are from the side to move
+      if (job.cancel) throw new Error(job.err || 'stopped');
+      vals.push(!res ? '0.00' : res[1] === 'mate' ? '#' + +res[2] * sign : ((+res[2] * sign) / 100).toFixed(2));
+    }
+    writeEvalsHeader(vals.join(','));
+    storyNote(`Analysed ${fens.length} positions; the timeline now shows the evaluation wave. Save the .pgn to keep it.`);
+  } catch (e) {
+    storyNote(e.message === 'stopped' ? 'Analysis stopped.' : 'Analysis failed: ' + e.message, e.message !== 'stopped');
+  } finally { worker.terminate(); analysing = null; $('fAnalyse').textContent = 'Analyse'; }
+}
+$('fAnalyse').onclick = analyseStory;
 
 $('bFilm').onclick = enterFilm;
 $('fExit').onclick = exitFilm;
