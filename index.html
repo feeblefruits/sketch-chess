@@ -1583,7 +1583,7 @@ function refreshMarkers() {
   for (const m of markerPool) m.visible = false;
   markerIdx = 0;
   const hist = chess.history({ verbose: true });
-  const last = hist[hist.length - 1];
+  const last = filmMode.active ? filmMode.lastMove : hist[hist.length - 1]; // films load positions directly
   if (last) { putMarker('last', last.from); putMarker('last', last.to); }
   if (chess.inCheck()) {
     for (const row of chess.board()) for (const c of row) if (c && c.type === 'k' && c.color === chess.turn()) putMarker('check', c.square);
@@ -2153,7 +2153,8 @@ function parseStory(src) {
     else if (m[4]) { const prev = [...cur].reverse().find((n) => n.type === 'move'); if (prev) { prev.nag = NAG[m[4]] || prev.nag; if (cur[cur.length - 1] === prev) prev.end = end; } }
     else if (m[6]) headers.Result = headers.Result || m[6];
     else if (m[7]) cur.push({ type: 'move', san: m[7], nag: m[8] || '', vars: [], start: numAt ?? m.index, end });
-    else if (/[a-h][1-8]/.test(m[9])) throw storyError(`Couldn't read the move "${m[9]}"`, m.index);
+    // anything that looks like a move but can't be read is an error, never silently skipped
+    else if (/[a-h][1-8]/.test(m[9]) || (/^[KQRBN]/.test(m[9]) && /\d/.test(m[9]))) throw storyError(`Couldn't read the move "${m[9]}"`, m.index);
     else warnings.push(m[9]); // evaluation symbols like +=, ±, N, etc.
     numAt = null;
   }
@@ -2236,6 +2237,53 @@ function evalTimeline(beats, evals, plies, duration) {
   pts.push({ t: duration, v: pts.length ? pts[pts.length - 1].v : 0 });
   return pts;
 }
+// Plays one move. Legal moves follow the rules (castling, en passant, promotion). Anything else is a "free move",
+// for staged, illustrative films: the named piece of the side to move simply goes to the square (capturing whatever
+// is there); naming a piece that's already on the square is a pass. Either way the turn passes to the other side.
+const FREE_SAN = /^(?:([KQRBN])([a-h])?([1-8])?|([a-h]))?x?([a-h][1-8])(?:=([QRBN]))?[+#]?$/;
+const PIECE_WORD = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+function stepMove(game, san) {
+  try { return { mv: game.move(san), free: false }; } catch (e) { /* not legal here: play it as written */ }
+  const turn = game.turn(), text = san.replace(/[!?]+$/, '');
+  let from, to, type, promo, rook = null;
+  const castle = text.replace(/[+#]$/, '').match(/^(?:O-O(-O)?|0-0(-0)?)$/);
+  if (castle) {
+    const r = turn === 'w' ? '1' : '8', long = !!(castle[1] || castle[2]);
+    type = 'k'; from = 'e' + r; to = (long ? 'c' : 'g') + r; rook = [(long ? 'a' : 'h') + r, (long ? 'd' : 'f') + r];
+    const k = game.get(from);
+    if (!k || k.type !== 'k' || k.color !== turn) throw new Error(`Can't castle: the ${turn === 'w' ? 'white' : 'black'} king isn't on ${from}`);
+  } else {
+    const m = text.match(FREE_SAN);
+    if (!m) throw new Error(`Couldn't read the move "${san}"`);
+    type = m[1] ? m[1].toLowerCase() : 'p'; to = m[5]; promo = m[6] && m[6].toLowerCase();
+    const fileHint = m[1] ? m[2] : m[4], rankHint = m[3], cands = [];
+    for (const row of game.board()) for (const c of row) {
+      if (c && c.color === turn && c.type === type && (!fileHint || c.square[0] === fileHint) && (!rankHint || c.square[1] === rankHint)) cands.push(c.square);
+    }
+    if (!cands.length) throw new Error(`There's no ${turn === 'w' ? 'white' : 'black'} ${PIECE_WORD[type]} to play ${san}`);
+    if (cands.includes(to)) from = to; // already there: a pass
+    else {
+      // the nearest such piece, preferring one a real knight's hop away for knights
+      const df = (a) => Math.abs(a.charCodeAt(0) - to.charCodeAt(0)), dr = (a) => Math.abs(+a[1] - +to[1]);
+      const score = (a) => (type === 'n' && ((df(a) === 1 && dr(a) === 2) || (df(a) === 2 && dr(a) === 1)) ? -1 : Math.max(df(a), dr(a)));
+      from = cands.reduce((best, a) => (score(a) < score(best) ? a : best), cands[0]);
+    }
+  }
+  const piece = game.get(from), victim = from === to ? null : game.get(to) || null;
+  if (from !== to) {
+    game.remove(from); if (victim) game.remove(to);
+    game.put({ type: promo || piece.type, color: piece.color }, to);
+    if (rook && game.get(rook[0])) { const rk = game.get(rook[0]); game.remove(rook[0]); game.put(rk, rook[1]); }
+  }
+  // hand the turn over; keep only castling rights whose king and rook are still at home
+  const f = game.fen().split(' ');
+  const home = (sq, t, c) => { const x = game.get(sq); return x && x.type === t && x.color === c; };
+  const rights = [['K', 'e1', 'h1', 'w'], ['Q', 'e1', 'a1', 'w'], ['k', 'e8', 'h8', 'b'], ['q', 'e8', 'a8', 'b']]
+    .filter(([ch, ks, rs, c]) => f[2].includes(ch) && home(ks, 'k', c) && home(rs, 'r', c)).map(([ch]) => ch).join('');
+  f[1] = turn === 'w' ? 'b' : 'w'; f[2] = rights || '-'; f[3] = '-'; f[4] = '0'; if (turn === 'b') f[5] = String(+f[5] + 1);
+  game.load(f.join(' '), { skipValidation: true });
+  return { mv: { from, to, san: text, piece: piece.type, color: turn, captured: victim ? victim.type : undefined, flags: castle ? (rook[0][0] === 'a' ? 'q' : 'k') : '', free: true }, free: true };
+}
 function kingSquare(game, color) {
   for (const row of game.board()) for (const c of row) if (c && c.type === 'k' && c.color === color) return c.square;
   return null;
@@ -2243,7 +2291,8 @@ function kingSquare(game, color) {
 
 function compileStory(story, vo = {}) {
   const g = new Chess();
-  if (story.headers.FEN) g.load(story.headers.FEN);
+  if (story.headers.FEN) { try { g.load(story.headers.FEN); } catch (e) { g.load(story.headers.FEN, { skipValidation: true }); } }
+  const startFen = g.fen(), fens = [startFen], freeMoves = [];
   const beats = [];
   let beat = null, ply = 0;
   const openBeat = (caption, tags, open = null) => {
@@ -2261,11 +2310,13 @@ function compileStory(story, vo = {}) {
     beats.push(beat);
   };
   const lineOf = (fen, nodes) => {
-    const gg = new Chess(fen), out = [];
+    const gg = new Chess(); gg.load(fen, { skipValidation: true });
+    const out = [];
     for (const n of nodes) if (n.type === 'move') {
-      let mv;
-      try { mv = gg.move(n.san); } catch (e) { throw storyError(`Illegal move ${n.san} in a variation`, n.start); }
-      out.push({ ...mv, nag: n.nag });
+      let st;
+      try { st = stepMove(gg, n.san); } catch (e) { throw storyError(`${e.message} (in a variation)`, n.start); }
+      if (st.free) freeMoves.push({ san: n.san, pos: n.start });
+      out.push({ ...st.mv, nag: n.nag });
     }
     return out;
   };
@@ -2282,19 +2333,21 @@ function compileStory(story, vo = {}) {
       if (!beat) openBeat('', []);
       if (beat.firstMoveStart == null) beat.firstMoveStart = n.start;
       const before = g.fen();
-      let mv;
-      try { mv = g.move(n.san); } catch (e) { throw storyError(`Illegal move ${n.san} at ply ${ply + 1}`, n.start); }
-      ply++;
+      let st;
+      try { st = stepMove(g, n.san); } catch (e) { throw storyError(`${e.message} (move ${ply + 1})`, n.start); }
+      const mv = st.mv;
+      if (st.free) freeMoves.push({ san: n.san, pos: n.start });
+      ply++; fens.push(g.fen());
       const ticker = tickerText(before, mv.san, n.nag);
       beat.lastTicker = ticker;
       beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
-        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), start: n.start, end: n.end, ply });
+        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), start: n.start, end: n.end, ply, fenAfter: g.fen() });
     }
   }
   // a [%preview ply|end] beat shows a later position of the game; the next beat sweeps the pieces back
   const later = { fens: [], tickers: [] };
-  { const gp = new Chess(story.headers.FEN || undefined);
-    for (const n of story.root) if (n.type === 'move') { const before = gp.fen(), mv = gp.move(n.san); later.fens.push(gp.fen()); later.tickers.push(tickerText(before, mv.san, n.nag)); } }
+  { const gp = new Chess(); gp.load(startFen, { skipValidation: true });
+    for (const n of story.root) if (n.type === 'move') { const before = gp.fen(), { mv } = stepMove(gp, n.san); later.fens.push(gp.fen()); later.tickers.push(tickerText(before, mv.san, n.nag)); } }
   for (const b of beats) {
     if (!b.lastTicker) b.lastTicker = b.ticker;
     if (b.preview && later.fens.length) {
@@ -2377,7 +2430,7 @@ function compileStory(story, vo = {}) {
         A.push({ t: t + slot + 0.4, type: 'cam', spec: { preset: 'restore' }, blend: 1.3 });
         slot += 0.6;
       }
-      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker, srcStart: it.start, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply });
+      A.push({ t, type: 'move', san: mv.san, from: mv.from, to: mv.to, fenAfter: it.fenAfter, moveDur, ticker: it.ticker, srcStart: it.start, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply });
       landT = t + moveDur + 0.15;
       A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
       if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
@@ -2396,7 +2449,7 @@ function compileStory(story, vo = {}) {
     b.squares = [...squares];
     start += b.dur;
   }
-  return { headers: story.headers, beats, duration: start, plies: ply, finalFen: g.fen(), evalPts: evalTimeline(beats, evals, ply, start) };
+  return { headers: story.headers, beats, duration: start, plies: ply, finalFen: g.fen(), fens, freeMoves, evalPts: evalTimeline(beats, evals, ply, start) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -2887,7 +2940,7 @@ function beginBeat(i, live) {
   const b = film.comp.beats[i];
   film.beatIdx = i; film.actIdx = 0;
   if (chess.fen() !== b.fen) { // e.g. after a [%preview]: sweep the pieces back to where this beat starts
-    chess.load(b.fen); filmMode.moveDur = 1.2; sync(); refreshMarkers();
+    chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null; filmMode.moveDur = 1.2; sync(); refreshMarkers();
     film.ticker = b.ticker ? { text: b.ticker, t0: film.t } : null;
   }
   const nowS = film.t, nowMs = clock.now();
@@ -2909,7 +2962,8 @@ function applyAction(a, b, live) {
     case 'recap': film.recap = { list: a.list, t0: nowS }; break;
     case 'move': {
       filmMode.moveDur = a.moveDur;
-      chess.move(a.san);
+      chess.load(a.fenAfter, { skipValidation: true }); // the compiled position: legal and free moves alike
+      filmMode.lastMove = { from: a.from, to: a.to };
       sync(); refreshMarkers();
       film.ticker = { text: a.ticker, t0: nowS };
       break;
@@ -2975,7 +3029,7 @@ function seekFilm(t) {
   const b = beats[i];
   rand = mulberry32(777 + i);
   wiggleTime = b.start; boilStep = -1;
-  chess.load(b.fen);
+  chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null;
   for (const o of pieces) { o.think = null; o.wob = 0; }
   clearGhosts(true); clearPuffs();
   sync({ instant: true });
@@ -3333,7 +3387,11 @@ function edStatus(msg, err = false, pos = null) {
   el.title = pos != null ? 'Click to jump to the problem' : '';
 }
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const okStatus = () => edStatus(`✓ ${plural(film.comp.plies, 'move')} · ${plural(film.comp.beats.length, 'beat')} · ${fmtTime(film.comp.duration)}`);
+const okStatus = () => {
+  const fm = film.comp.freeMoves || [], text = film.compiledText || '';
+  const free = fm.length ? ` · ${plural(fm.length, 'free move')} (not legal chess, played as written): ${fm.slice(0, 4).map((x) => `${x.san} (line ${lineAt(text, x.pos)})`).join(', ')}${fm.length > 4 ? '…' : ''}` : '';
+  edStatus(`✓ ${plural(film.comp.plies, 'move')} · ${plural(film.comp.beats.length, 'beat')} · ${fmtTime(film.comp.duration)}${free}`, false, fm.length ? fm[0].pos : null);
+};
 function toolHint(msg, err = false) { const el = $('fToolHint'); el.textContent = msg; el.style.color = err ? 'var(--red)' : ''; }
 function markDirty() {
   const st = currentStory();
@@ -3652,8 +3710,7 @@ function writeEvalsHeader(list) {
 async function analyseStory() {
   if (analysing) { analysing.cancel = true; return; }
   if (film.editing && filmText.value !== film.compiledText) { storyNote('Fix the story error first, then analyse.', true); return; }
-  const g = new Chess(film.story.headers.FEN || undefined), fens = [g.fen()];
-  for (const n of film.story.root) if (n.type === 'move') { g.move(n.san); fens.push(g.fen()); }
+  const fens = film.comp.fens;
   const job = (analysing = { cancel: false, err: null }), storyAtStart = film.storyId;
   const worker = new Worker(URL.createObjectURL(new Blob([`importScripts('${ENGINE_URL}');`], { type: 'application/javascript' })));
   let listener = null;
