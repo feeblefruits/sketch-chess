@@ -138,6 +138,7 @@
   body.filming #sb, body.filming #sbFrame, body.filming #sbLabels { display: none; }
   #sb { top: 14px; right: 14px; bottom: calc(var(--toolbar-h, 56px) + 28px); width: 350px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
   #sb[hidden] { display: none; }
+  #sb > * { flex-shrink: 0; }
   .sbhead { display: flex; justify-content: space-between; align-items: baseline; }
   #sb h2 { font-family: 'Caveat', cursive; font-size: 30px; margin: 0; line-height: 1; }
   .sbx { font: inherit; font-size: 26px; line-height: 1; border: none; background: none; cursor: pointer; color: var(--ink-soft); padding: 0 4px; }
@@ -145,7 +146,7 @@
   #sbLabelText { flex: 1; min-width: 110px; font: inherit; font-size: 16px; padding: 4px 8px; color: var(--ink); background: var(--paper-2);
     border: 1.5px solid var(--ink); border-radius: 8px 3px 8px 4px; -webkit-user-select: text; user-select: text; }
   #sbHint.err { color: var(--red); }
-  #sbBeats { list-style: none; margin: 0; padding: 0 2px 0 0; flex: 1; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  #sbBeats { list-style: none; margin: 0; padding: 0 2px 0 0; flex: 1 1 auto; min-height: 60px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
     border-top: 1.5px dashed var(--graphite); padding-top: 8px; }
   .sbbeat { border: 1.5px solid var(--graphite); border-radius: 10px 4px 9px 5px; padding: 6px 8px 7px; display: flex; flex-direction: column; gap: 5px; background: var(--paper-2); }
   .sbbeat.on { border: 2px solid var(--ink); box-shadow: 3px 4px 0 rgba(27, 26, 23, .12); }
@@ -192,8 +193,12 @@
     #sb { top: auto; left: 8px; right: 8px; width: auto; height: 44vh; padding: 6px 10px 8px; gap: 6px; }
     #sb h2 { font-size: 24px; }
     #sb .tool { font-size: 13px; padding: 2px 6px; flex: none; }
-    #sbTools { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+    #sbTools, #sbCam .camshots { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
     #sb .swatch { width: 22px; height: 22px; }
+    #sb { height: 50vh; overflow-y: auto; }
+    #sbBeats { flex: none; overflow: visible; min-height: 0; }
+    #sbCam .camsrc, #sbHint:not(.err) { display: none; }
+    #sbCam .camhead { font-size: 16px; }
     #sbFrame { display: none !important; }
   }
 
@@ -229,8 +234,22 @@
   .swatch.on { box-shadow: 0 0 0 3px var(--paper-2), 0 0 0 5px var(--ink); }
   #fLabelText { flex: 1; min-width: 120px; font: inherit; font-size: 16px; padding: 4px 8px; color: var(--ink); background: var(--paper-2);
     border: 1.5px solid var(--ink); border-radius: 8px 3px 8px 4px; -webkit-user-select: text; user-select: text; }
-  .fcamstate { font-size: 14px; padding: 1px 9px; border-radius: 9px; background: rgba(27, 26, 23, .08); }
-  .fcamstate.free { background: var(--hl); }
+  .camui { display: flex; flex-direction: column; gap: 5px; }
+  .camhead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 19px; }
+  .camname { font-size: 15px; padding: 1px 9px; border-radius: 9px; background: rgba(27, 26, 23, .08); }
+  .camname.free { background: var(--hl); }
+  .camsrc { font-size: 14px; }
+  .camshots { align-items: center; }
+  .camseg { display: inline-flex; margin-left: auto; }
+  .camseg .tool:first-child { border-radius: 10px 0 0 6px; }
+  .camseg .tool:last-child { border-radius: 0 7px 9px 0; margin-left: -1.5px; }
+  .camedit { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1.5px dashed var(--graphite); border-radius: 9px 4px 8px 4px; }
+  .camedit[hidden] { display: none; }
+  .camedit.dirty { border-color: var(--red); background: rgba(194, 54, 31, .05); }
+  .camedit-note { font-size: 14px; }
+  .camedit .btn { font-size: 15px; padding: 4px 10px; }
+  .campreview { font-size: 14px; color: var(--ink-soft); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .campreview input { accent-color: var(--ink); }
   .fed-wrap { position: relative; flex: 1; min-height: 240px; display: flex; }
   #fText, #fTextHL { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px; border: 2px solid var(--ink);
     border-radius: 6px 3px 7px 4px; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; tab-size: 4; overflow-y: scroll; margin: 0; }
@@ -351,8 +370,8 @@
     </div>
     <input id="sbLabelText" type="text" placeholder="label text, e.g. weak" hidden aria-label="Label text">
   </div>
+  <div id="sbCam" class="camui"></div>
   <div class="frow">
-    <button class="btn sketch" id="sbView" title="Use the view on screen as the film's camera from this move on">Use this view</button>
     <button class="btn sketch" id="sbBeat" title="Start a new beat (a new caption) at this move">＋ New beat here</button>
     <button class="btn sketch" id="sbClear" title="Take down every mark showing, from this move on">Clear marks</button>
   </div>
@@ -423,14 +442,7 @@
       </div>
       <div id="fToolHint" class="fnote">Marks are added at the current moment of the film, after the last move shown.</div>
     </div>
-    <div class="fedgroup">
-      <div class="fedlabel">Camera <span id="fCamState" class="fcamstate">director</span></div>
-      <div class="fnote">Drag the preview to orbit, right-drag to pan, scroll to zoom (a plain click still uses the selected tool).</div>
-      <div class="frow">
-        <button class="btn sketch" id="fUseView" disabled title="Save this exact view as the camera from this moment on">Use this view</button>
-        <button class="btn sketch" id="fDirector" disabled title="Hand the camera back to the director (Esc)">Back to director</button>
-      </div>
-    </div>
+    <div class="fedgroup"><div id="fCam" class="camui"></div></div>
     <div class="fed-wrap">
       <div id="fTextHL" aria-hidden="true"></div>
       <textarea id="fText" spellcheck="false" autocomplete="off" aria-label="Story PGN"></textarea>
@@ -1594,7 +1606,9 @@ function setPieceFade(o, a) {
 }
 const camUp = new THREE.Vector3();
 function updateDiagram(dt) {
-  const target = film.active ? (camState.cur && camState.cur.diagram ? 1 : 0) : (diagram.on ? 1 : 0);
+  const target = film.active ? (film.freeCam && !film.exporting ? camPhi(filmControls.target) < 0.25 : camState.cur && camState.cur.diagram) ? 1 : 0
+    : sb.on && sb.preview ? (sb.editing ? camPhi(controls.target) < 0.25 : sb.shotDiagram) ? 1 : 0
+    : diagram.on ? 1 : 0;
   if (dt > 0) diagram.mix += clamp(target - diagram.mix, -dt / 0.5, dt / 0.5);
   const m = diagram.mix, pieceA = clamp((0.8 - m) / 0.6, 0, 1), tokA = clamp((m - 0.2) / 0.6, 0, 1); // a true crossfade, no empty board halfway
   diagHullA.uniforms.uOpacity.value = pieceA ** 2; diagHullB.uniforms.uOpacity.value = pieceA ** 2 * 0.8;
@@ -1889,7 +1903,7 @@ function updateUI() {
   }
   renderLog();
   refreshMarkers();
-  if (sb.on) { renderStoryboard(); sbRefreshMarks(); }
+  if (sb.on) { renderStoryboard(); sbRefreshMarks(); sbShowFilmCamera(); renderSbCam(); }
 }
 
 function renderLog() {
@@ -1977,10 +1991,15 @@ function fitDistance() {
 }
 // the diagram view looks (almost) straight down; exactly vertical would leave the camera without an up direction
 function defaultSpherical(side) { return new THREE.Spherical(fitDistance() * (diagram.on ? 0.92 : 1), diagram.on ? 0.06 : 0.74, side === 'w' ? 0 : Math.PI); }
-function setDiagram(on) {
+function setDiagramLook(on) {
   diagram.on = on;
   $('bDiagram').classList.toggle('on', on); $('bDiagram').setAttribute('aria-pressed', String(on));
   controls.maxPolarAngle = on ? 0.12 : 1.42; // in the diagram view, orbiting turns the board instead of tipping it
+}
+function setDiagram(on) {
+  // with the storyboard open, 2D / 3D belongs to the film's shot at this move
+  if (sb.on) { sbCam.on.dim(on ? '2d' : '3d'); return; }
+  setDiagramLook(on);
   userMovedCamera = false; setView(viewSide, true);
 }
 function setView(side, animate) {
@@ -2124,7 +2143,7 @@ $('bUndo').onclick = undo;
 $('bRedo').onclick = redo;
 $('bFlip').onclick = () => { viewSide = viewSide === 'w' ? 'b' : 'w'; userMovedCamera = false; setView(viewSide, true); };
 $('bView').onclick = () => { userMovedCamera = false; setView(viewSide, true); };
-$('bDiagram').onclick = () => setDiagram(!diagram.on);
+$('bDiagram').onclick = () => setDiagram(!(sb.on ? diagram.mix > 0.5 : diagram.on));
 // Colour look: swaps the palette for the board, pieces, page, titles, diagram symbols and promotion thumbnails
 function setColour(on) {
   palette = on ? PALETTES.colour : PALETTES.mono;
@@ -2173,7 +2192,7 @@ addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
   else if (!mod && e.key.toLowerCase() === 'f') $('bFlip').onclick();
   else if (!mod && e.key.toLowerCase() === 'c') $('bView').onclick();
-  else if (!mod && e.key.toLowerCase() === 'd') setDiagram(!diagram.on);
+  else if (!mod && e.key.toLowerCase() === 'd') setDiagram(!(sb.on ? diagram.mix > 0.5 : diagram.on));
   else if (!mod && e.key.toLowerCase() === 'k') setColour(palette !== PALETTES.colour);
 });
 
@@ -2209,6 +2228,7 @@ function frame(rafNow) {
   const dt = clamp((rafNow - lastT) / 1000, 0, 0.05); lastT = rafNow;
   if (film.active) { film.onFrame(dt); return; }
   updateWorld(dt, rafNow);
+  if (sb.anim) sbStepAnim(performance.now());
   updateGameCamera(rafNow);
   if (sb.on) { updateAnnots(performance.now() / 1000); placeSbLabels(); }
   renderer.render(scene, camera);
@@ -2597,9 +2617,9 @@ function compileStory(story, vo = {}) {
         for (const tag of it.tags) {
           const args = tag.args;
           if (tag.k === 'cam') {
-            const spec = parseCam(args);
-            if (!hadMove) A.push({ t: 0, type: 'cam', spec, base: true, blend: 1.8 });
-            else { A.push({ t: mt, type: 'cam', spec, base: false, blend: afterMove ? 0.8 : 1.3 }); t = Math.max(t, mt + (afterMove ? 1.0 : 0)); }
+            const spec = parseCam(args), src = { start: it.start, end: it.end }; // src: the comment that holds the tag
+            if (!hadMove) A.push({ t: 0, type: 'cam', spec, base: true, blend: 1.8, src });
+            else { A.push({ t: mt, type: 'cam', spec, base: false, blend: afterMove ? 0.8 : 1.3, src }); t = Math.max(t, mt + (afterMove ? 1.0 : 0)); }
             hasCam = true; camCueBeforeMove = true;
           } else if (tag.k === 'cal' || tag.k === 'csl' || tag.k === 'zone' || tag.k === 'trail') {
             for (const spec of args.split(',').map((x) => x.trim()).filter(Boolean)) {
@@ -2658,10 +2678,10 @@ function compileStory(story, vo = {}) {
       squares.add(mv.from); squares.add(mv.to);
       t += slot; hadMove = true; camCueBeforeMove = false;
     }
-    if (!hasCam) {
-      const sq = [...squares];
-      A.unshift({ t: 0, type: 'cam', spec: b.timelapse ? { preset: 'top', squares: [] } : sq.length ? { preset: 'frame', squares: sq } : { preset: 'overview', squares: [] }, base: true, blend: 1.8 });
-    }
+    // the director's own framing: the squares this beat plays on. [%cam auto] hands the camera back to it mid-beat.
+    const sq = [...squares], directed = () => (b.timelapse ? { preset: 'top', squares: [] } : sq.length ? { preset: 'frame', squares: sq } : { preset: 'overview', squares: [] });
+    for (const a of A) if (a.type === 'cam' && a.spec.preset === 'auto') Object.assign(a.spec, { ...directed(), auto: true, diagram: a.spec.diagram });
+    if (!hasCam) A.unshift({ t: 0, type: 'cam', spec: directed(), base: true, blend: 1.8 });
     A.sort((a, c) => a.t - c.t);
     const voDur = vo[b.id] ? vo[b.id].duration + VO_DELAY + 0.6 : 0;
     b.actions = A;
@@ -3158,6 +3178,7 @@ const film = {
     }
     if (this.freeCam) filmControls.update();
     renderEditorHighlight();
+    updateCamUI();
     renderFilmFrame();
     updateFilmClock();
   },
@@ -3861,28 +3882,138 @@ const filmControls = (() => {
   c.addEventListener('change', () => { if (gesture && !film.freeCam && film.editing && !film.exporting) beginFreeCam(); });
   return c;
 })();
-function updateCamUI() {
-  const el = $('fCamState');
-  el.textContent = film.freeCam ? 'free: your view' : 'director';
-  el.classList.toggle('free', !!film.freeCam);
-  $('fUseView').disabled = $('fDirector').disabled = !film.freeCam;
+/* ---- Camera panel, shared by the storyboard and the story editor ----
+ * It names the shot the film uses at this moment, offers a few ready-made shots, switches between
+ * 3D pieces and the top-down 2D diagram, and saves a view you frame yourself by dragging. */
+const SHOT_NAMES = { auto: 'Director', frame: 'Director', overview: 'Overview', top: 'Top-down', closeup: 'Close-up', low: 'Low angle',
+  orbit: 'Orbit', follow: 'Follow', profile: 'Profile', check: 'Low angle on the check', view: 'Your view' };
+const shotIs2D = (spec) => (spec.preset === 'view' ? spec.diagram ?? (spec.nums[4] ?? 1) < 0.25 : spec.diagram ?? spec.preset === 'top');
+const shotName = (spec) => `${SHOT_NAMES[spec.auto ? 'auto' : spec.preset] || spec.preset} · ${shotIs2D(spec) ? '2D' : '3D'}`;
+function viewString(target) {
+  const sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(target));
+  return 'view ' + [target.x, target.y, target.z, sph.radius].map((n) => n.toFixed(2)).concat([sph.phi, sph.theta].map((n) => n.toFixed(3))).join(' ');
 }
+// the same view, tipped to look straight down (2D) or back up to a normal angle (3D)
+function viewTipped(spec, twoD) {
+  const [tx, ty, tz, r, phi, theta] = spec.nums;
+  const nphi = twoD ? 0.05 : phi < 0.25 ? 0.74 : phi;
+  return `view ${[tx, ty, tz, r].map((n) => n.toFixed(2)).join(' ')} ${nphi.toFixed(3)} ${theta.toFixed(3)}${twoD ? '' : ' 3d'}`;
+}
+const camPhi = (target) => new THREE.Spherical().setFromVector3(camera.position.clone().sub(target)).phi;
+function makeCamUI(root, preview) {
+  root.innerHTML = `
+    <div class="camhead">Camera <span class="camname"></span></div>
+    <div class="camsrc fnote"></div>
+    <div class="ftools camshots" role="toolbar" aria-label="Camera shots">
+      <button class="tool" data-shot="auto" title="The director frames the action by itself (and drops low for checks)">Auto</button>
+      <button class="tool" data-shot="overview" title="The whole board from a raised angle">Overview</button>
+      <button class="tool" data-shot="closeup" title="Close in on the last move and the marks">Close-up</button>
+      <button class="tool" data-shot="low" title="A low, dramatic angle on the last move">Low</button>
+      <span class="camseg" role="group" aria-label="3D pieces or 2D diagram">
+        <button class="tool" data-dim="3d" title="3D pieces (D)">3D</button><button class="tool" data-dim="2d" title="Top-down 2D diagram (D)">2D</button></span>
+    </div>
+    <div class="camedit"><span class="camedit-note"></span>
+      <span class="frow"><button class="btn sketch camsave">Save view here</button><button class="btn sketch camdiscard">Discard</button></span></div>
+    ${preview ? '<label class="campreview"><input type="checkbox" checked> The board shows the film\'s camera</label>' : ''}`;
+  const q = (sel) => root.querySelector(sel), ui = { on: {} };
+  root.querySelectorAll('[data-shot]').forEach((b) => { b.onclick = () => ui.on.shot(b.dataset.shot); });
+  root.querySelectorAll('[data-dim]').forEach((b) => { b.onclick = () => ui.on.dim(b.dataset.dim); });
+  q('.camsave').onclick = () => ui.on.save();
+  q('.camdiscard').onclick = () => ui.on.discard();
+  if (preview) q('.campreview input').onchange = (e) => ui.on.preview(e.target.checked);
+  // st: { name, src, key (active shot button), twoD, editing (unsaved view), free (no film camera to follow), note }
+  ui.render = (st) => {
+    q('.camname').textContent = st.editing ? 'Your view · unsaved' : st.name;
+    q('.camname').classList.toggle('free', !!st.editing);
+    q('.camsrc').textContent = st.src;
+    root.querySelectorAll('[data-shot]').forEach((b) => b.classList.toggle('on', !st.editing && b.dataset.shot === st.key));
+    root.querySelectorAll('[data-dim]').forEach((b) => b.classList.toggle('on', (b.dataset.dim === '2d') === !!st.twoD));
+    const ed = q('.camedit');
+    ed.hidden = !st.editing && !st.free;
+    ed.classList.toggle('dirty', !!st.editing);
+    q('.camedit-note').textContent = st.note || '';
+    q('.camdiscard').hidden = !st.editing;
+  };
+  return ui;
+}
+
+// The story editor's camera: what the film shows at this moment, and where that comes from
+const fCam = makeCamUI($('fCam'), false);
+function studioShot() {
+  const b = film.comp && film.comp.beats[film.beatIdx];
+  if (!b) return null;
+  const lt = film.t - b.start + 0.06;
+  let cur = null, base = null;
+  for (const a of b.actions) {
+    if (a.t > lt) break;
+    if (a.type !== 'cam') continue;
+    if (a.base) base = a;
+    cur = a.spec.preset === 'restore' ? base : a;
+  }
+  return cur;
+}
+// the squares of the last move shown (for close-ups), or the beat's
+function studioActionSquares() {
+  const b = film.comp.beats[film.beatIdx], lt = film.t - b.start + 0.06;
+  let last = null;
+  for (const a of b.actions) if (a.type === 'move' && a.t <= lt) last = a;
+  return last ? [last.from, last.to] : b.squares.length ? b.squares : ['d4', 'e4', 'd5', 'e5'];
+}
+let camUIKey = '';
+function updateCamUI(force = false) {
+  if (!film.editing) return;
+  const a = studioShot(), spec = a ? a.spec : { preset: 'overview', squares: [] };
+  const key = [film.freeCam, a && a.t, a && film.beatIdx, a && a.src && a.src.start, spec.preset].join('|');
+  if (!force && key === camUIKey) return;
+  camUIKey = key;
+  const fromTag = !!(a && a.src) && !spec.auto;
+  fCam.render({
+    name: fromTag ? shotName(spec) : spec.preset === 'check' ? shotName(spec) : `Director · ${shotIs2D(spec) ? '2D' : '3D'}`,
+    src: fromTag ? `Set in the story, line ${lineAt(film.compiledText, a.src.start)}. It lasts until the camera changes or the beat ends.`
+      : 'Chosen by the director, who frames the moves of this beat. Pick a shot, or drag the preview to frame your own.',
+    key: fromTag ? spec.preset : 'auto', twoD: film.freeCam ? camPhi(filmControls.target) < 0.25 : shotIs2D(spec),
+    editing: film.freeCam, note: 'You moved the camera. Save it as the shot from this moment on?',
+  });
+}
+fCam.on.shot = (key) => {
+  const a = studioShot(), fromTag = !!(a && a.src) && !a.spec.auto;
+  if (film.freeCam) endFreeCam();
+  if (key === 'auto') {
+    if (!fromTag) { toolHint('The director already has the camera here.'); return; }
+    if (writeTag('cam', 'auto', 'replace', 0.85)) toolHint('The director has the camera again from this moment on.');
+    return;
+  }
+  const value = key === 'overview' ? 'overview' : `${key} ${[...new Set(studioActionSquares())].join(' ')}`;
+  if (writeTag('cam', value, 'replace', 0.85)) toolHint(`${SHOT_NAMES[key]} from this moment on.`);
+};
+fCam.on.dim = (dim) => {
+  const twoD = dim === '2d';
+  if (film.freeCam) { // tip your own view and keep framing it
+    const t = filmControls.target, sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t));
+    sph.phi = twoD ? 0.05 : sph.phi < 0.25 ? 0.74 : sph.phi;
+    camera.position.setFromSpherical(sph).add(t); camera.lookAt(t); renderFilmFrame(); updateCamUI(true);
+    return;
+  }
+  const a = studioShot(), spec = a ? a.spec : null;
+  if (spec && shotIs2D(spec) === twoD) return;
+  const value = spec && spec.preset === 'view' ? viewTipped(spec, twoD) : twoD ? 'top' : 'auto 3d';
+  if (writeTag('cam', value, 'replace', 0.85)) toolHint(twoD ? 'Top-down 2D diagram from this moment on.' : '3D pieces from this moment on.');
+};
+fCam.on.save = () => {
+  const view = viewString(filmControls.target);
+  film.freeCam = false; updateCamUI(true);
+  if (writeTag('cam', view, 'replace', 0.85)) toolHint('Saved your view as the camera from this moment on.');
+};
+fCam.on.discard = () => endFreeCam();
 function beginFreeCam() {
   film.freeCam = true;
-  updateCamUI();
+  updateCamUI(true);
 }
 function endFreeCam() {
   film.freeCam = false;
   updateFilmCamera(clock.t); renderFilmFrame();
-  updateCamUI();
+  updateCamUI(true);
 }
-$('fDirector').onclick = endFreeCam;
-$('fUseView').onclick = () => {
-  const t = filmControls.target, sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t));
-  const view = [t.x, t.y, t.z, sph.radius].map((n) => n.toFixed(2)).concat([sph.phi, sph.theta].map((n) => n.toFixed(3))).join(' ');
-  film.freeCam = false; updateCamUI();
-  if (writeTag('cam', `view ${view}`, 'replace', 0.85)) toolHint('Saved this view as the camera from this moment on.');
-};
 
 function setEditing(on) {
   film.editing = on;
@@ -3891,7 +4022,7 @@ function setEditing(on) {
   document.body.classList.toggle('editing', on);
   if (on) showStoryInEditor(currentStory());
   else { tool = null; arrowFrom = null; clearTimeout(compileTimer); if (film.freeCam) endFreeCam(); }
-  refreshTools(); updateCamUI();
+  refreshTools(); updateCamUI(true);
 }
 // Esc steps back one level: arrow in progress → tool → free camera. Returns false when there was nothing to undo.
 function studioEscape() {
@@ -4019,7 +4150,8 @@ $('film').querySelector('.film-stage').appendChild(compCanvas);
  *  a caption and chapter title (which open a beat), pencil marks and a camera view. Marks show on the
  *  board as they will in the film, and the storyboard writes the same annotated PGN the studio reads.
  * ------------------------------------------------------------------ */
-const sb = { on: false, notes: new Map(), tool: null, color: 'R', arrowFrom: null, press: null, dirty: false, labels: [], notice: null };
+const sb = { on: false, notes: new Map(), tool: null, color: 'R', arrowFrom: null, press: null, dirty: false, labels: [], notice: null,
+  preview: true, editing: false, anim: null, shotDiagram: false };
 const sbNote = (p, make) => {
   let n = sb.notes.get(p);
   if (!n && make) { n = { beat: false, caption: '', title: '', cam: null, marks: [], stops: [] }; sb.notes.set(p, n); }
@@ -4130,7 +4262,7 @@ function refreshSbTools() {
   document.body.classList.toggle('tooling', sb.on && !!sb.tool);
   sbDefaultHint();
 }
-function sbChanged(fresh = null) { sb.dirty = true; sbRefreshMarks(fresh); renderStoryboard(); }
+function sbChanged(fresh = null) { sb.dirty = true; sbRefreshMarks(fresh); renderStoryboard(); sbShowFilmCamera(); renderSbCam(); }
 
 function sbAnnotate(sq) {
   const p = curPly();
@@ -4287,7 +4419,7 @@ function renderStoryboard() {
         const x = document.createElement('button'); x.textContent = '×'; x.title = 'Remove'; x.onclick = onRemove; c.append(x);
         row.append(c);
       };
-      if (nq.cam) addChip('📷 your view', '', () => { nq.cam = null; if (sbEmpty(nq)) sb.notes.delete(q); sbChanged(); }, () => { gotoPly(q); lookThrough(nq.cam); });
+      if (nq.cam) addChip(`📷 ${nq.cam.startsWith('auto') ? 'director' : shotName(parseCam(nq.cam)).toLowerCase()}`, '', () => { nq.cam = null; if (sbEmpty(nq)) sb.notes.delete(q); sbChanged(); }, () => { sb.editing = false; if (curPly() !== q) gotoPly(q); else sbShowFilmCamera(); if (!sb.preview) lookThrough(nq.cam); renderSbCam(); });
       for (const st of nq.stops) addChip(st === '*' ? '⌫ all marks end' : `⌫ ${st} ends`, 'var(--ink-soft)',
         () => { nq.stops = nq.stops.filter((x) => x !== st); if (sbEmpty(nq)) sb.notes.delete(q); sbChanged(); });
       for (const m of nq.marks) addChip(markText(m), m.k === 'label' || m.k === 'cross' ? 'var(--red)' : m.k === 'tick' ? 'var(--blue)' : MARK_CSS[m.v[0]],
@@ -4314,7 +4446,10 @@ function setStoryboard(on) {
   annotMesh.visible = on;
   if (!on) { sb.tool = null; sb.arrowFrom = null; }
   sbPlaceFrame(); refreshSbTools(); renderStoryboard(); sbRefreshMarks();
-  if (!userMovedCamera && !camTween) setView(viewSide, true);
+  sb.editing = false; sb.anim = null;
+  controls.minDistance = on ? 4 : 5;
+  if (on && sb.preview) sbShowFilmCamera(); else { userMovedCamera = false; setView(viewSide, true); }
+  renderSbCam();
 }
 
 // The storyboard as an annotated PGN story, the same format the film studio reads and writes
@@ -4384,13 +4519,130 @@ document.querySelectorAll('#sbColors .swatch').forEach((b) => {
     document.querySelectorAll('#sbColors .swatch').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
   };
 });
-$('sbView').onclick = () => {
-  const t = controls.target, sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t));
-  const view = [t.x, t.y, t.z, sph.radius].map((n) => n.toFixed(2)).concat([sph.phi, sph.theta].map((n) => n.toFixed(3))).join(' ');
-  sbNote(curPly(), true).cam = `view ${view}`;
+
+/* ---- Storyboard camera: the board shows what the film's camera will see at this move ----
+ * The storyboard is compiled exactly as the film will be, and the camera in effect at this move
+ * (the director's, a ready-made shot or a saved view) is applied to the board. Drag the board and
+ * the view becomes yours, unsaved, until you save or discard it. */
+const sbCam = makeCamUI($('sbCam'), true);
+let sbCompText = '', sbComp = null;
+function sbCompiled() {
+  const text = storyboardPGN();
+  if (text !== sbCompText) {
+    sbCompText = text;
+    try { sbComp = compileStory(parseStory(text)); } catch (e) { sbComp = null; }
+  }
+  return sbComp;
+}
+// The film's camera spec at position p: the beat holding p, at the moment that move has landed
+function sbFilmShot(p) {
+  const comp = sbCompiled();
+  if (!comp || !comp.beats.length) return null;
+  let b = comp.beats[0];
+  for (const x of comp.beats) if (x.ply0 <= p) b = x;
+  let tP = 0.01;
+  if (p > b.ply0) { const mv = b.actions.find((a) => a.type === 'move' && a.ply === p); if (mv) tP = mv.cueT + 0.05; }
+  let cur = null, base = null;
+  for (const a of b.actions) {
+    if (a.t > tP) break;
+    if (a.type !== 'cam') continue;
+    if (a.base) base = a.spec;
+    cur = a.spec.preset === 'restore' ? base || { preset: 'overview', squares: [] } : a.spec;
+  }
+  return cur;
+}
+function sbShowFilmCamera(animate = true) {
+  if (!sb.on || !sb.preview || sb.editing || film.active) return;
+  const spec = sbFilmShot(curPly());
+  if (!spec) return;
+  const shot = resolveShot(spec, 0), pose = shotPose(shot, shot.t0);
+  sb.shotDiagram = !!shot.diagram;
+  const from = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  camTween = null; userMovedCamera = true;
+  sb.anim = { t0: performance.now(), dur: animate ? 0.75 : 0, fromT: controls.target.clone(), from,
+    toT: new THREE.Vector3(pose.tx, pose.ty, pose.tz), to: new THREE.Spherical(pose.r, clamp(pose.phi, 0.05, 1.25), wrapNear(pose.theta, from.theta)) };
+}
+function sbStepAnim(now) {
+  const a = sb.anim, k = a.dur ? clamp((now - a.t0) / 1000 / a.dur, 0, 1) : 1, e = ease(k);
+  controls.target.lerpVectors(a.fromT, a.toT, e);
+  const r = Math.exp(Math.log(a.from.radius) + (Math.log(a.to.radius) - Math.log(a.from.radius)) * e);
+  camera.position.setFromSpherical(new THREE.Spherical(r, a.from.phi + (a.to.phi - a.from.phi) * e, a.from.theta + (a.to.theta - a.from.theta) * e)).add(controls.target);
+  camera.lookAt(controls.target);
+  if (k >= 1) sb.anim = null;
+}
+// the camera note in effect at p: the latest one since the beat began
+function sbCamAt(p) {
+  const beats = sbBeats(fullLine().sans.length), b = beats[sbBeatAt(beats, p)];
+  for (let q = p; q >= b.start; q--) { const n = sb.notes.get(q); if (n && n.cam) return { q, cam: n.cam, spec: parseCam(n.cam) }; }
+  return null;
+}
+function sbSetCam(cam, msg) {
+  const p = curPly(), n = sbNote(p, true);
+  n.cam = null;
+  if (cam && /^auto\b/.test(cam) && !/diagram/.test(cam) && !sbCamAt(p)) cam = null; // nothing earlier in the beat: the director has it anyway
+  n.cam = cam;
+  if (sbEmpty(n)) sb.notes.delete(p);
+  sb.editing = false;
   sbChanged();
-  sbHint('Saved this view: the film uses it from this move until the camera changes or the beat ends.');
+  if (msg) sbHint(msg);
+}
+function sbActionSquares() {
+  const h = chess.history({ verbose: true }), sq = new Set();
+  if (h.length) { const m = h[h.length - 1]; sq.add(m.from); sq.add(m.to); }
+  for (const { m } of sbVisible(curPly())) for (const x of markSquares(m)) sq.add(x);
+  return sq.size ? [...sq] : ['d4', 'e4', 'd5', 'e5'];
+}
+function renderSbCam() {
+  if (!sb.on) return;
+  const p = curPly(), eff = sbCamAt(p), { sans } = fullLine();
+  const film2D = sb.preview ? sb.shotDiagram : diagram.on;
+  const where = (q) => (q ? `after ${plyLabel(q, sans, true)}` : 'at the start');
+  const shown2D = sb.editing || !sb.preview ? camPhi(controls.target) < 0.25 : film2D;
+  $('bDiagram').classList.toggle('on', shown2D); $('bDiagram').setAttribute('aria-pressed', String(shown2D));
+  sbCam.render({
+    name: eff && !(eff.spec.preset === 'auto') ? shotName(eff.spec) : `Director · ${film2D ? '2D' : '3D'}`,
+    src: eff && eff.spec.preset !== 'auto'
+      ? `${eff.q === p ? 'Set at this move' : `Set ${where(eff.q)}`}: it lasts until the camera changes or the beat ends.`
+      : 'The director frames this beat\'s moves by itself. Pick a shot, or drag the board to frame your own.',
+    key: eff ? eff.spec.preset : 'auto', twoD: shown2D,
+    editing: sb.editing, free: !sb.preview,
+    note: sb.editing ? 'You moved the camera. Save it as the shot from this move on?' : 'Frame a shot inside the dashed film frame, then save it for this move.',
+  });
+}
+sbCam.on.shot = (key) => {
+  if (key === 'auto') { sbSetCam('auto', 'The director has the camera from this move on.'); return; }
+  sbSetCam(key === 'overview' ? 'overview' : `${key} ${sbActionSquares().join(' ')}`, `${SHOT_NAMES[key]} from this move on.`);
 };
+sbCam.on.dim = (dim) => {
+  const twoD = dim === '2d';
+  if (sb.editing || !sb.preview) { // tip the view on screen and keep framing it
+    const t = controls.target, sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t));
+    sph.phi = twoD ? 0.05 : sph.phi < 0.25 ? 0.74 : sph.phi;
+    sb.anim = { t0: performance.now(), dur: 0.6, fromT: t.clone(), toT: t.clone(),
+      from: new THREE.Spherical().setFromVector3(camera.position.clone().sub(t)), to: sph };
+    if (!sb.preview) setDiagramLook(twoD);
+    renderSbCam();
+    return;
+  }
+  const eff = sbCamAt(curPly()), spec = eff ? eff.spec : null;
+  if (spec && spec.preset === 'view') { sbSetCam(viewTipped(spec, twoD), twoD ? 'Your view, looking straight down (2D).' : 'Your view, in 3D.'); return; }
+  if (twoD) { sbSetCam('top', 'Top-down 2D diagram from this move on.'); return; }
+  sbSetCam('auto 3d', '3D pieces from this move on.');
+};
+sbCam.on.save = () => sbSetCam(viewString(controls.target), 'Saved your view: the film uses it from this move until the camera changes or the beat ends.');
+sbCam.on.discard = () => { sb.editing = false; sbShowFilmCamera(); renderSbCam(); };
+sbCam.on.preview = (on) => {
+  sb.preview = on; sb.editing = false;
+  if (on) sbShowFilmCamera(); else setDiagramLook(diagram.on);
+  renderSbCam();
+};
+// dragging the board takes the camera: the view is yours (unsaved) until you save or discard it
+let sbGesture = false;
+controls.addEventListener('start', () => { sbGesture = true; sb.anim = null; });
+controls.addEventListener('end', () => { sbGesture = false; });
+controls.addEventListener('change', () => {
+  if (sbGesture && sb.on && sb.preview && !sb.editing && !film.active) { sb.editing = true; renderSbCam(); }
+});
 $('sbBeat').onclick = () => {
   const p = curPly();
   if (!p) return;
