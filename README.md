@@ -6,9 +6,9 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 
 ## Features
 
-- **Pencil-sketch rendering** — screen-space cross-hatching shaders, jittery double-stroke ink outlines, scribbled dark squares, handwritten coordinates, hatched shadows, and an optional "wiggle" that redraws lines a few times a second.
+- **Pencil-sketch rendering** — screen-space cross-hatching shaders, jittery double-stroke ink outlines (with a thin paper halo around the dark pieces, so they stay separate silhouettes when they overlap), scribbled dark squares, handwritten coordinates, hatched shadows, and an optional "wiggle" that redraws lines a few times a second.
 - **Full chess rules** via [chess.js](https://github.com/jhlywa/chess.js): castling, en passant, promotion, check, checkmate and draws.
-- **Interaction** — drag-and-drop or click-to-move, legal-move markers, arcing move animations, captured pieces slide into a tray beside the board, promotion picker with 3D-rendered thumbnails.
+- **Interaction** — drag-and-drop or click-to-move, legal-move markers, arcing move animations, captures burst into a three-frame puff of graphite and eraser dust as the taken piece slides into a tray beside the board, promotion picker with 3D-rendered thumbnails.
 - **Camera** — orbit, pan and zoom (mouse or touch), flip to Black's side, reset view.
 - **Colour** — switch between the pencil look and ink-and-wash colour: a green and cream board in a wooden frame, ivory and charcoal pieces, parchment page. Applies to the game, films and exports, and is remembered between visits.
 - **Diagram view** — look straight down at the board with the 3D pieces swapped for hand-inked diagram symbols (they crossfade). The symbols stay upright as you turn the board.
@@ -36,7 +36,7 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 - **Export MP4** renders frame by frame on a virtual clock, so playback speed doesn't matter, and encodes H.264 + AAC in the browser with WebCodecs ([Mediabunny](https://mediabunny.dev)). Use a recent Chrome or Edge.
 - **Voiceover**: "Narration script" copies and downloads one line per beat (`vo-01`, `vo-02`, …). Record or generate a clip per line, name it to match (`vo-03.mp3`), and drop the clips on the panel. Each beat stretches to fit its clip, and the clips are mixed into the export.
 - **Subtitles .srt** downloads captions timed to the film.
-- **Evaluation wave**: the timeline at the bottom of the film is a sideways evaluation bar that rises when White is better and dips (with Black's share hatched) when Black is; what has been played is inked, the rest is a faint preview. The built-in films include engine evaluations. **Analyse** works them out for any other story with Stockfish in the browser (about a minute for a long game) and writes them into the story as an `[Evals]` header; Lichess PGNs that already contain `[%eval]` comments work as they are.
+- **Evaluation wave**: the timeline at the bottom of the film is a sideways evaluation bar that rises when White is better and dips when Black is; Black's share is shaded and cross-hatched. What has been played is inked, the rest is a faint preview. The built-in films include engine evaluations. **Analyse** works them out for any other story with Stockfish in the browser (about a minute for a long game) and writes them into the story as an `[Evals]` header; Lichess PGNs that already contain `[%eval]` comments work as they are.
 
 ### Editing in the studio
 

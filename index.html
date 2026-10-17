@@ -652,12 +652,13 @@ const U = {
   whiteHi: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
   blackHi: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
   blackLo: { value: new THREE.Vector3(0.45, 0.44, 0.41) },
+  uHalo: { value: new THREE.Vector3(0.98, 0.968, 0.937) },
 };
 // Pencil (mono) or ink-and-wash colour: a green and cream board in a wooden frame, ivory and charcoal pieces.
 const PALETTES = {
-  mono: { page: '#f8f5ec', ink: [0.106, 0.102, 0.09], whiteHi: [0.98, 0.968, 0.937], blackHi: [0.98, 0.968, 0.937], blackLo: [0.45, 0.44, 0.41],
+  mono: { page: '#f8f5ec', ink: [0.106, 0.102, 0.09], whiteHi: [0.98, 0.968, 0.937], blackHi: [0.98, 0.968, 0.937], blackLo: [0.45, 0.44, 0.41], halo: [0.98, 0.968, 0.937],
     title: '#1b1a17', ticker: '#1b1a17', tokenWhite: '#faf7ef', tokenBlack: 'rgba(27,26,23,0.93)' },
-  colour: { page: '#f4ebd6', ink: [0.2, 0.155, 0.115], whiteHi: [0.975, 0.945, 0.86], blackHi: [0.6, 0.565, 0.52], blackLo: [0.25, 0.235, 0.22],
+  colour: { page: '#f4ebd6', ink: [0.2, 0.155, 0.115], whiteHi: [0.975, 0.945, 0.86], blackHi: [0.6, 0.565, 0.52], blackLo: [0.25, 0.235, 0.22], halo: [0.965, 0.93, 0.84],
     title: '#7f5733', ticker: '#a04634', tokenWhite: '#f7efda', tokenBlack: 'rgba(58,50,44,0.92)' },
 };
 let palette = PALETTES.mono;
@@ -762,6 +763,31 @@ const outlineA = new THREE.ShaderMaterial({
 const outlineB = new THREE.ShaderMaterial({
   uniforms: { uRes: U.uRes, uTime: U.uTime, uInk: U.uInk, uWidth: { value: 1 }, uSeed: { value: 11.3 }, uOffset: { value: new THREE.Vector2(1.2, -1) }, uOpacity: { value: 1 } },
   vertexShader: OUTLINE_VS, fragmentShader: OUTLINE_FS, side: THREE.BackSide,
+});
+// Black pieces get a thin paper halo just outside their ink line, so a dark piece standing in front of another
+// stays a separate silhouette. It sits a touch behind the ink shell (polygon offset) and stops above the foot,
+// so it never rings the base on the board.
+const HALO_VS = /* glsl */`
+  uniform vec2 uRes; uniform float uWidth; uniform float uTime;
+  varying float vY;
+  float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  void main() {
+    vY = position.y;
+    vec4 clip = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec3 vn = normalize(normalMatrix * normal);
+    vec2 d = (projectionMatrix * vec4(vn, 0.0)).xy * uRes;
+    float l = length(d); d = l > 1e-6 ? d / l : vec2(0.0);
+    float j = h3(floor(position * 9.0) + vec3(floor(uTime * 5.0)));
+    clip.xy += d * uWidth * (0.85 + 0.3 * j) * 2.0 / uRes * clip.w;
+    gl_Position = clip;
+  }`;
+const HALO_FS = /* glsl */`
+  uniform vec3 uHalo; varying float vY;
+  void main() { if (vY < 0.1) discard; gl_FragColor = vec4(uHalo, 1.0); }`;
+const haloMat = new THREE.ShaderMaterial({
+  uniforms: { uRes: U.uRes, uTime: U.uTime, uHalo: U.uHalo, uWidth: { value: 4.4 } },
+  vertexShader: HALO_VS, fragmentShader: HALO_FS, side: THREE.BackSide,
+  polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8,
 });
 const pieceEdgeMat = new LineMaterial({ color: 0x1b1a17, linewidth: 1.1, transparent: true, opacity: 0.8 });
 const boardLineMatA = new LineMaterial({ color: 0x1b1a17, linewidth: 2.3 });
@@ -1170,6 +1196,49 @@ const MARKER_KINDS = {
 };
 const VARIANTS = 3;
 const markerTex = {};
+// A capture's puff of graphite and eraser dust, drawn as three flip-book frames: a tight burst,
+// a looser cloud with crumbs flying out, then a few specks.
+function drawDustFrame(ctx, S, f) {
+  const c = S / 2, spread = [0.2, 0.3, 0.38][f];
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // a soft graphite smudge under the burst, a few lumpy blobs
+  for (let i = 0; i < 5; i++) {
+    const a = rand() * TAU, d = S * spread * rand() * 0.5, x = c + Math.cos(a) * d, y = c + Math.sin(a) * d * 0.8, r = S * (spread * 0.7 + rand() * 0.06);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(60,58,54,${[0.3, 0.18, 0.07][f]})`); g.addColorStop(1, 'rgba(60,58,54,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  }
+  // graphite cloud: overlapping scribbled loops, looser and fainter each frame
+  const clouds = [7, 6, 4][f];
+  for (let i = 0; i < clouds; i++) {
+    const a = rand() * TAU, d = S * spread * (0.2 + rand() * 0.55), r = S * (0.07 + rand() * 0.05) * (1 + f * 0.35);
+    roughCircle(ctx, c + Math.cos(a) * d, c + Math.sin(a) * d * 0.8, r, f === 2 ? 0.6 : 1.4 - f * 0.3,
+      S * (0.018 - f * 0.003), `rgba(45,43,40,${[0.85, 0.6, 0.32][f]})`, 0.25);
+  }
+  // speed strokes radiating out of the burst
+  const strokes = [12, 8, 0][f];
+  for (let i = 0; i < strokes; i++) {
+    const a = i / strokes * TAU + rj(0.25), r0 = S * (spread + 0.04 + rand() * 0.04), r1 = r0 + S * (0.06 + rand() * 0.06);
+    roughLine(ctx, c + Math.cos(a) * r0, c + Math.sin(a) * r0 * 0.85, c + Math.cos(a) * r1, c + Math.sin(a) * r1 * 0.85, S * 0.016, S * 0.004, 'rgba(27,26,23,0.85)', 1);
+  }
+  // eraser crumbs: little rolled paper-coloured worms with an ink rim, flung further out each frame
+  const crumbs = [6, 9, 7][f];
+  for (let i = 0; i < crumbs; i++) {
+    const a = rand() * TAU, d = S * (spread * (0.5 + rand() * 0.7) + f * 0.04), x = c + Math.cos(a) * d, y = c + Math.sin(a) * d * 0.85;
+    const len = S * (0.012 + rand() * 0.025) * (f === 2 ? 0.7 : 1), ang = rand() * TAU, w = S * (0.022 + rand() * 0.012);
+    const dx = Math.cos(ang) * len, dy = Math.sin(ang) * len;
+    for (const [col, lw] of [['rgba(27,26,23,0.85)', w + S * 0.012], ['#f7f2e4', w]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x - dx, y - dy); ctx.lineTo(x + dx, y + dy); ctx.stroke();
+    }
+  }
+  // graphite specks
+  ctx.fillStyle = 'rgba(27,26,23,0.7)';
+  for (let i = 0; i < [10, 16, 12][f]; i++) {
+    const a = rand() * TAU, d = S * (spread * (0.4 + rand() * 0.9) + f * 0.05);
+    ctx.beginPath(); ctx.arc(c + Math.cos(a) * d, c + Math.sin(a) * d * 0.85, S * (0.004 + rand() * 0.006), 0, TAU); ctx.fill();
+  }
+}
+const dustTex = [];
 const boardTex = [];
 let shadowTex, boardShadowTex;
 
@@ -1183,6 +1252,10 @@ function buildTextures() {
       fn(ctx, S); markerTex[k].push(toTex(c));
     }
   }
+  for (let v = 0; v < 2; v++) dustTex.push([0, 1, 2].map((f) => {
+    rand = mulberry32(seed++);
+    const S = 256, c = makeCanvas(S); drawDustFrame(c.getContext('2d'), S, f); return toTex(c);
+  }));
   for (let v = 0; v < VARIANTS; v++) boardTex.push(drawBoardTexture(900 + v * 13));
   shadowTex = drawShadowTexture(55);
   boardShadowTex = drawShadowTexture(56, true);
@@ -1277,7 +1350,19 @@ function putMarker(kind, sq) {
 }
 
 const puffs = [];
-function clearPuffs() { for (const p of puffs) p.visible = false; }
+function clearPuffs() { for (const p of puffs) p.visible = false; for (const d of dusts) d.visible = false; }
+// capture dust: a billboard flip-book over the taken piece, drawn on top of everything for its third of a second
+const dusts = [], DUST_MS = 330;
+function spawnDust(x, z) {
+  let d = dusts.find((q) => !q.visible);
+  if (!d) {
+    d = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false, depthWrite: false }));
+    d.renderOrder = 9; scene.add(d); dusts.push(d);
+  }
+  d.userData.frames = dustTex[(rand() * dustTex.length) | 0];
+  d.userData.x = x; d.userData.z = z; d.userData.t0 = clock.now(); d.userData.f = -1;
+  d.material.rotation = rj(0.4); d.visible = true;
+}
 function spawnPuff(x, z) {
   let p = puffs.find((q) => !q.visible);
   if (!p) {
@@ -1304,6 +1389,7 @@ function buildPieceMeshes(o) {
   const ed = new LineSegments2(g.edges, pieceEdgeMat);
   o.group.add(o.mesh, hA, hB, ed);
   if (g.extra) o.group.add(new THREE.Mesh(g.extra, inkMat));
+  if (o.color === 'b') o.group.add(new THREE.Mesh(g.outline, haloMat));
   o.group.rotation.y = (o.type === 'n' ? (o.color === 'w' ? Math.PI - 0.45 : -0.45) : o.color === 'w' ? 0 : Math.PI) + o.twist;
   o.shadowSize = { p: 0.78, r: 0.9, n: 0.88, b: 0.86, q: 0.95, k: 0.98 }[o.type];
 }
@@ -1926,7 +2012,7 @@ $('bDiagram').onclick = () => setDiagram(!diagram.on);
 // Colour look: swaps the palette for the board, pieces, page, titles, diagram symbols and promotion thumbnails
 function setColour(on) {
   palette = on ? PALETTES.colour : PALETTES.mono;
-  U.uInk.value.set(...palette.ink); U.whiteHi.value.set(...palette.whiteHi); U.blackHi.value.set(...palette.blackHi); U.blackLo.value.set(...palette.blackLo);
+  U.uInk.value.set(...palette.ink); U.whiteHi.value.set(...palette.whiteHi); U.blackHi.value.set(...palette.blackHi); U.blackLo.value.set(...palette.blackLo); U.uHalo.value.set(...palette.halo);
   const look = boardSet(on ? 'colour' : 'mono');
   boardTop.material.map = look.top[((boilStep % VARIANTS) + VARIANTS) % VARIANTS]; boardTop.material.needsUpdate = true;
   boardLook.mats.mSL.map = look.light; boardLook.mats.mSD.map = look.dark; boardLook.mats.paper.color.set(look.base);
@@ -1984,6 +2070,7 @@ function resize() {
   outlineA.uniforms.uWidth.value = 2.0 * pr * thin;
   outlineB.uniforms.uWidth.value = 1.0 * pr * thin;
   outlineB.uniforms.uOffset.value.set(1.3 * pr, -1.0 * pr);
+  haloMat.uniforms.uWidth.value = 4.4 * pr * thin;
   for (const m of lineMats) m.resolution.set(w, h);
   if (!userMovedCamera && !camTween) setView(viewSide, false);
 }
@@ -2043,6 +2130,15 @@ function updateWorld(dt, now) {
     if (!(k >= 0 && k < 1)) { pf.visible = false; continue; }
     const s = 0.7 + k * 0.6; pf.scale.set(s, 1, s); pf.material.opacity = 1 - k;
   }
+  for (const d of dusts) if (d.visible) {
+    const k = (now - d.userData.t0) / DUST_MS;
+    if (!(k >= 0 && k < 1)) { d.visible = false; continue; }
+    const f = Math.min(2, (k * 3) | 0); // held frames, like drawn animation on threes
+    if (f !== d.userData.f) { d.userData.f = f; d.material.map = d.userData.frames[f]; d.material.needsUpdate = true; }
+    const s = 1.7 + f * 0.25;
+    d.scale.set(s, s, 1); d.position.set(d.userData.x, 0.45 + f * 0.1, d.userData.z);
+    d.material.opacity = f === 2 ? 0.85 : 1;
+  }
 }
 
 function stepPiece(o, dt, now, t) {
@@ -2072,7 +2168,7 @@ function stepPiece(o, dt, now, t) {
   } else if (o.tween) {
     const tw = o.tween;
     let k = (now - tw.t0) / 1000 / tw.dur;
-    if (k >= 0 && !tw.started) { tw.started = true; if (tw.capture) sfx('capture'); }
+    if (k >= 0 && !tw.started) { tw.started = true; if (tw.capture) { sfx('capture'); if (!o.ghost) spawnDust(tw.from.x, tw.from.z); } }
     k = clamp(k, 0, 1);
     const e = ease(k);
     p.lerpVectors(tw.from, tw.to, e);
@@ -2861,7 +2957,7 @@ function composite() {
 
 // The film's timeline as a sideways evaluation bar: the curve rises when White is better and dips when Black is;
 // Black's share is hatched. What has been played is inked, the rest is a faint preview.
-const WAVE = { x0: 70, x1: FILM_W - 70, mid: FILM_H - 66, amp: 24, n: 240 };
+const WAVE = { x0: 70, x1: FILM_W - 70, mid: FILM_H - 68, amp: 28, n: 240 };
 function waveSamples(comp) {
   if (comp._wave) return comp._wave;
   const pts = comp.evalPts, out = new Float32Array(WAVE.n + 1);
@@ -2881,23 +2977,29 @@ function drawEvalWave(prog, boil) {
   withSeed(11 + boil, () => {
     cctx.save();
     cctx.lineCap = 'round'; cctx.lineJoin = 'round';
-    // Black's share: between the top of the band and the curve, hatched (darker where already played)
-    for (const [from, to, alpha] of [[0, head, 0.42], [head, n, 0.12]]) {
+    // Black's share: between the top of the band and the curve, a graphite wash under cross-hatching
+    // (dark where already played, faint ahead)
+    for (const [from, to, wash, alpha, cross] of [[0, head, 0.34, 0.8, 0.5], [head, n, 0.07, 0.24, 0]]) {
       if (to <= from) continue;
       cctx.save(); cctx.beginPath(); cctx.moveTo(X(from), top);
       for (let i = from; i <= to; i++) cctx.lineTo(X(i), Y(i));
-      cctx.lineTo(X(to), top); cctx.closePath(); cctx.clip();
-      cctx.strokeStyle = `rgba(27,26,23,${alpha})`; cctx.lineWidth = 1.6;
-      for (let x = X(from) - 40; x < X(to) + 40; x += 7 + rand() * 3) { cctx.beginPath(); cctx.moveTo(x + rj(1.5), bottom); cctx.lineTo(x + 26 + rj(2), top); cctx.stroke(); }
+      cctx.lineTo(X(to), top); cctx.closePath();
+      cctx.fillStyle = `rgba(27,26,23,${wash})`; cctx.fill(); cctx.clip();
+      cctx.strokeStyle = `rgba(27,26,23,${alpha})`; cctx.lineWidth = 2;
+      for (let x = X(from) - 40; x < X(to) + 40; x += 5 + rand() * 2.5) { cctx.beginPath(); cctx.moveTo(x + rj(1.5), bottom); cctx.lineTo(x + 26 + rj(2), top); cctx.stroke(); }
+      if (cross) {
+        cctx.strokeStyle = `rgba(27,26,23,${cross})`; cctx.lineWidth = 1.5;
+        for (let x = X(from) - 40; x < X(to) + 40; x += 8 + rand() * 3) { cctx.beginPath(); cctx.moveTo(x + rj(1.5), bottom); cctx.lineTo(x - 22 + rj(2), top); cctx.stroke(); }
+      }
       cctx.restore();
     }
     // even-game line, band edges
     cctx.setLineDash([6, 9]); cctx.strokeStyle = 'rgba(27,26,23,0.25)'; cctx.lineWidth = 1.5;
     cctx.beginPath(); cctx.moveTo(x0, mid); cctx.lineTo(x1, mid); cctx.stroke(); cctx.setLineDash([]);
-    roughLine(cctx, x0, top, x1, top, 1.6, 1.2, 'rgba(27,26,23,0.3)', 1);
-    roughLine(cctx, x0, bottom, x1, bottom, 1.6, 1.2, 'rgba(27,26,23,0.3)', 1);
+    roughLine(cctx, x0, top, x1, top, 1.8, 1.2, 'rgba(27,26,23,0.45)', 1);
+    roughLine(cctx, x0, bottom, x1, bottom, 1.8, 1.2, 'rgba(27,26,23,0.45)', 1);
     // the curve: inked up to now, faint after
-    for (const [from, to, alpha, w] of [[0, head, 0.85, 3], [head, n, 0.25, 2]]) {
+    for (const [from, to, alpha, w] of [[0, head, 0.95, 4], [head, n, 0.35, 2.2]]) {
       if (to <= from) continue;
       cctx.strokeStyle = `rgba(27,26,23,${alpha})`; cctx.lineWidth = w;
       cctx.beginPath(); cctx.moveTo(X(from), Y(from) + rj(0.8));
@@ -2910,7 +3012,7 @@ function drawEvalWave(prog, boil) {
     cctx.fillStyle = 'rgb(194,54,31)'; cctx.beginPath(); cctx.arc(hx, hy, 6, 0, TAU); cctx.fill();
     // tiny key: black's side up, white's side down
     cctx.font = '24px "Apple Symbols","Segoe UI Symbol",serif'; cctx.textAlign = 'right'; cctx.textBaseline = 'middle';
-    cctx.fillStyle = 'rgba(27,26,23,0.55)'; cctx.fillText('♚\uFE0E', x0 - 10, top + 8); cctx.fillText('♔\uFE0E', x0 - 10, bottom - 8);
+    cctx.fillStyle = 'rgba(27,26,23,0.75)'; cctx.fillText('♚\uFE0E', x0 - 10, top + 8); cctx.fillText('♔\uFE0E', x0 - 10, bottom - 8);
     cctx.restore();
   });
 }
@@ -3319,7 +3421,7 @@ function enterFilm() {
   camera.setViewOffset(FILM_W, FILM_H, 0, FILM_H * 0.06, FILM_W, FILM_H);
   camera.updateProjectionMatrix();
   U.uPR.value = 1.6; U.uRes.value.set(FILM_W, FILM_H);
-  outlineA.uniforms.uWidth.value = 3.0; outlineB.uniforms.uWidth.value = 1.5; outlineB.uniforms.uOffset.value.set(2.0, -1.5);
+  outlineA.uniforms.uWidth.value = 3.0; outlineB.uniforms.uWidth.value = 1.5; outlineB.uniforms.uOffset.value.set(2.0, -1.5); haloMat.uniforms.uWidth.value = 6.6;
   lineMats.forEach((m, i) => { m.resolution.set(FILM_W, FILM_H); m.linewidth = filmSaved.lw[i] * 1.6; });
   annotMesh.visible = true;
   if (!grainPattern) buildGrain();
