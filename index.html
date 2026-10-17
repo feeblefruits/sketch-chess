@@ -167,8 +167,15 @@
     border: 1.5px solid var(--ink); border-radius: 8px 3px 8px 4px; -webkit-user-select: text; user-select: text; }
   .fcamstate { font-size: 14px; padding: 1px 9px; border-radius: 9px; background: rgba(27, 26, 23, .08); }
   .fcamstate.free { background: var(--hl); }
-  #fText { flex: 1; min-height: 240px; resize: vertical; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink);
-    background: var(--paper-2); border: 2px solid var(--ink); border-radius: 6px 3px 7px 4px; padding: 10px; -webkit-user-select: text; user-select: text; }
+  .fed-wrap { position: relative; flex: 1; min-height: 240px; display: flex; }
+  #fText, #fTextHL { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px; border: 2px solid var(--ink);
+    border-radius: 6px 3px 7px 4px; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; tab-size: 4; overflow-y: scroll; margin: 0; }
+  #fText { position: relative; z-index: 1; flex: 1; min-height: 240px; resize: none; color: var(--ink); background: transparent;
+    -webkit-user-select: text; user-select: text; }
+  /* the highlight layer: same text, invisible, with the marks showing through the transparent text box */
+  #fTextHL { position: absolute; inset: 0; color: transparent; background: var(--paper-2); border-color: transparent; pointer-events: none; }
+  #fTextHL mark { color: transparent; background: rgba(255, 210, 60, .2); border-radius: 2px; }
+  #fTextHL mark.now { background: rgba(255, 196, 40, .62); box-shadow: 0 0 0 1px rgba(255, 196, 40, .4); }
   #fText:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
   #fEdStatus.err { color: var(--red); cursor: pointer; }
   body.editing #filmCanvas { cursor: grab; }
@@ -324,7 +331,10 @@
         <button class="btn sketch" id="fDirector" disabled title="Hand the camera back to the director (Esc)">Back to director</button>
       </div>
     </div>
-    <textarea id="fText" spellcheck="false" autocomplete="off" aria-label="Story PGN"></textarea>
+    <div class="fed-wrap">
+      <div id="fTextHL" aria-hidden="true"></div>
+      <textarea id="fText" spellcheck="false" autocomplete="off" aria-label="Story PGN"></textarea>
+    </div>
     <div id="fEdStatus" class="fnote"></div>
     <div class="frow">
       <button class="btn sketch" id="fSave" title="Download this story as a .pgn file">Save .pgn</button>
@@ -2278,7 +2288,7 @@ function compileStory(story, vo = {}) {
       const ticker = tickerText(before, mv.san, n.nag);
       beat.lastTicker = ticker;
       beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
-        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), end: n.end, ply });
+        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), start: n.start, end: n.end, ply });
     }
   }
   // a [%preview ply|end] beat shows a later position of the game; the next beat sweeps the pieces back
@@ -2367,7 +2377,7 @@ function compileStory(story, vo = {}) {
         A.push({ t: t + slot + 0.4, type: 'cam', spec: { preset: 'restore' }, blend: 1.3 });
         slot += 0.6;
       }
-      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply });
+      A.push({ t, type: 'move', san: mv.san, moveDur, ticker: it.ticker, srcStart: it.start, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply });
       landT = t + moveDur + 0.15;
       A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
       if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
@@ -2867,6 +2877,7 @@ const film = {
       if (this.t >= this.comp.duration) { this.playing = false; updateFilmUI(); }
     }
     if (this.freeCam) filmControls.update();
+    renderEditorHighlight();
     renderFilmFrame();
     updateFilmClock();
   },
@@ -3330,7 +3341,7 @@ function markDirty() {
 }
 function showStoryInEditor(st) {
   if (filmText.dataset.story !== st.id || filmText.value !== st.text) { filmText.value = st.text; filmText.dataset.story = st.id; }
-  okStatus(); markDirty();
+  okStatus(); markDirty(); renderEditorHighlight(true);
 }
 
 // Recompiles the film from the editor text, keeping the current position. On errors the preview keeps the last working version.
@@ -3359,7 +3370,51 @@ function applyStoryText(text) {
   okStatus(); markDirty();
   return true;
 }
-filmText.addEventListener('input', () => { markDirty(); clearTimeout(compileTimer); compileTimer = setTimeout(() => applyStoryText(filmText.value), 450); });
+filmText.addEventListener('input', () => { markDirty(); renderEditorHighlight(true); clearTimeout(compileTimer); compileTimer = setTimeout(() => applyStoryText(filmText.value), 450); });
+
+// Progress in the text: the current beat gets a soft wash, the move just played a stronger highlight.
+// A layer behind the (transparent) text box holds the same text with <mark>s; it scrolls with the box.
+const filmTextHL = $('fTextHL');
+let hlKey = '';
+const escHTML = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function renderEditorHighlight(force = false) {
+  if (!film.editing || !film.comp) return;
+  const text = filmText.value, valid = text === film.compiledText;
+  const beats = film.comp.beats, b = beats[film.beatIdx];
+  let ranges = [];
+  if (valid && b) {
+    const startOf = (x) => (x.open ? x.open.start : x.firstMoveStart);
+    const bStart = startOf(b) ?? 0, next = beats[film.beatIdx + 1];
+    const bEnd = next ? (startOf(next) ?? text.length) : text.length;
+    let mv = null;
+    const lt = film.t - b.start + 1e-6;
+    for (const a of b.actions) if (a.type === 'move' && a.t <= lt) mv = a;
+    ranges = [[bStart, bEnd, '']];
+    if (mv && mv.srcStart != null) ranges.push([mv.srcStart, mv.srcEnd, 'now']);
+  }
+  const key = valid ? ranges.map((r) => r.join(':')).join('|') : 'plain:' + text.length;
+  if (!force && key === hlKey) return;
+  hlKey = key;
+  // nested marks: [beat start … move … beat end]
+  let html = '';
+  if (!ranges.length) html = escHTML(text);
+  else {
+    const [bs, be] = ranges[0], now = ranges[1];
+    if (now) html = escHTML(text.slice(0, bs)) + '<mark>' + escHTML(text.slice(bs, now[0])) + '<mark class="now">' + escHTML(text.slice(now[0], now[1])) + '</mark>' + escHTML(text.slice(now[1], be)) + '</mark>' + escHTML(text.slice(be));
+    else html = escHTML(text.slice(0, bs)) + '<mark>' + escHTML(text.slice(bs, be)) + '</mark>' + escHTML(text.slice(be));
+  }
+  filmTextHL.innerHTML = html + ' '; // a trailing space keeps a final empty line the same height as in the text box
+  filmTextHL.scrollTop = filmText.scrollTop;
+  // follow along while playing, unless you're typing in the text
+  if (film.playing && document.activeElement !== filmText) {
+    const target = filmTextHL.querySelector('mark.now') || filmTextHL.querySelector('mark');
+    if (target) {
+      const top = target.offsetTop, h = filmText.clientHeight;
+      if (top < filmText.scrollTop + 20 || top > filmText.scrollTop + h - 40) { filmText.scrollTop = Math.max(0, top - h * 0.35); filmTextHL.scrollTop = filmText.scrollTop; }
+    }
+  }
+}
+filmText.addEventListener('scroll', () => { filmTextHL.scrollTop = filmText.scrollTop; });
 
 // Replaces text in the editor as an undoable edit (Ctrl+Z / Undo bring it back), then recompiles.
 function replaceStoryRange(start, end, insert) {
