@@ -133,6 +133,70 @@
   #loading svg path { stroke-dasharray: 260; stroke-dashoffset: 260; animation: draw 1.2s ease-in-out infinite alternate; }
   #loading small { font-family: 'Patrick Hand', cursive; font-size: 17px; color: var(--ink-soft); max-width: 80vw; text-align: center; }
 
+  /* storyboard: direct a film from the game */
+  body.boarding #log, body.boarding #hint { display: none; }
+  body.filming #sb, body.filming #sbFrame, body.filming #sbLabels { display: none; }
+  #sb { top: 14px; right: 14px; bottom: calc(var(--toolbar-h, 56px) + 28px); width: 350px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+  #sb[hidden] { display: none; }
+  .sbhead { display: flex; justify-content: space-between; align-items: baseline; }
+  #sb h2 { font-family: 'Caveat', cursive; font-size: 30px; margin: 0; line-height: 1; }
+  .sbx { font: inherit; font-size: 26px; line-height: 1; border: none; background: none; cursor: pointer; color: var(--ink-soft); padding: 0 4px; }
+  #sb .btn { font-size: 16px; padding: 5px 10px; }
+  #sbLabelText { flex: 1; min-width: 110px; font: inherit; font-size: 16px; padding: 4px 8px; color: var(--ink); background: var(--paper-2);
+    border: 1.5px solid var(--ink); border-radius: 8px 3px 8px 4px; -webkit-user-select: text; user-select: text; }
+  #sbHint.err { color: var(--red); }
+  #sbBeats { list-style: none; margin: 0; padding: 0 2px 0 0; flex: 1; min-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    border-top: 1.5px dashed var(--graphite); padding-top: 8px; }
+  .sbbeat { border: 1.5px solid var(--graphite); border-radius: 10px 4px 9px 5px; padding: 6px 8px 7px; display: flex; flex-direction: column; gap: 5px; background: var(--paper-2); }
+  .sbbeat.on { border: 2px solid var(--ink); box-shadow: 3px 4px 0 rgba(27, 26, 23, .12); }
+  .sbbh { display: flex; align-items: baseline; gap: 8px; font-size: 15px; }
+  .sbbh b { font-weight: 400; color: var(--blue); cursor: pointer; }
+  .sbbh .sbr { color: var(--ink-soft); flex: 1; cursor: pointer; }
+  .sbbh .sbx { font-size: 20px; }
+  .sbbeat input, .sbbeat textarea { font: inherit; color: var(--ink); background: transparent; border: none; border-bottom: 1.5px dashed var(--graphite);
+    padding: 2px 2px; width: 100%; resize: vertical; -webkit-user-select: text; user-select: text; }
+  .sbbeat input { font-family: 'Caveat', cursive; font-size: 21px; font-weight: 700; }
+  .sbbeat textarea { font-size: 16px; line-height: 1.3; min-height: 44px; }
+  .sbbeat input:focus, .sbbeat textarea:focus { outline: none; border-bottom: 1.5px solid var(--blue); background: rgba(43, 86, 184, .04); }
+  .sbmoves { display: flex; flex-wrap: wrap; gap: 3px 4px; font-size: 15px; }
+  .sbmv { font: inherit; border: none; background: none; padding: 1px 4px; border-radius: 4px; cursor: pointer; color: var(--ink); position: relative; }
+  .sbmv:hover { background: rgba(27, 26, 23, .07); }
+  .sbmv.cur { background: var(--hl); }
+  .sbmv.has::after { content: ""; position: absolute; right: 0; top: 1px; width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
+  .sbmv.start { color: var(--ink-soft); font-style: italic; }
+  .sbmvw { display: inline-flex; align-items: center; }
+  .sbdel { font: inherit; font-size: 14px; line-height: 1; border: none; background: none; cursor: pointer; color: var(--red); padding: 0 2px; margin-left: -2px;
+    opacity: 0; width: 0; overflow: hidden; transition: opacity .12s; }
+  .sbmvw:hover .sbdel, .sbmvw:focus-within .sbdel, .sbmvw.last .sbdel, .sbmvw:has(.cur) .sbdel { opacity: .8; width: auto; }
+  .sbdel:hover { opacity: 1; }
+  @media (hover: none) { .sbdel { opacity: .6; width: auto; } }
+  .sbnotes { display: flex; flex-direction: column; gap: 3px; font-size: 14px; color: var(--ink-soft); }
+  .sbnote { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .sbchip { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 6px; border: 1px solid var(--graphite); border-radius: 8px 3px 8px 3px;
+    font-size: 14px; color: var(--ink); background: var(--paper); }
+  .sbchip button { font: inherit; border: none; background: none; cursor: pointer; color: var(--ink-soft); padding: 0 3px; }
+  .sbchip .look { color: var(--blue); padding: 0 2px; }
+  .sbwarn { font-size: 13px; color: var(--red); }
+  .sbfoot { justify-content: flex-end; }
+  #sbFilm { background: var(--hl); }
+  #sbFrame { display: none; pointer-events: none; z-index: 5; border: 2px dashed rgba(27, 26, 23, .35); border-bottom: none; border-radius: 4px; }
+  body.boarding #sbFrame { display: block; }
+  #sbFrame span { position: absolute; top: -22px; left: 4px; font-size: 14px; color: var(--graphite); }
+  #sbFrame i { position: absolute; left: 0; right: 0; top: 74%; bottom: 0; background: repeating-linear-gradient(-55deg, rgba(27, 26, 23, .06) 0 1.5px, transparent 1.5px 7px); }
+  #sbLabels { inset: 0; pointer-events: none; z-index: 6; }
+  .sblabel { position: absolute; transform: translate(-50%, -100%); font-family: 'Caveat', cursive; font-weight: 700; font-size: 26px; color: var(--red);
+    white-space: nowrap; text-shadow: 0 0 3px var(--paper), 0 0 3px var(--paper), 0 0 6px var(--paper); }
+  .sblabel::after { content: ""; position: absolute; left: 50%; top: 100%; width: 2px; height: 16px; background: var(--red); opacity: .8; }
+  body.boarding.tooling #stage canvas { cursor: crosshair; }
+  @media (max-width: 760px) {
+    #sb { top: auto; left: 8px; right: 8px; width: auto; height: 44vh; padding: 6px 10px 8px; gap: 6px; }
+    #sb h2 { font-size: 24px; }
+    #sb .tool { font-size: 13px; padding: 2px 6px; flex: none; }
+    #sbTools { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+    #sb .swatch { width: 22px; height: 22px; }
+    #sbFrame { display: none !important; }
+  }
+
   /* film studio */
   body.filming #card, body.filming #log, body.filming #toolbar, body.filming #hint, body.filming #banner,
   body.filming .vignette, body.filming .grain { display: none; }
@@ -265,6 +329,41 @@
 
 <div id="hint" class="ui">Drag a piece (or click it, then a square) &middot; drag empty space to orbit &middot; right-drag to pan &middot; scroll to zoom</div>
 
+<div id="sbFrame" class="ui" aria-hidden="true"><span>film frame</span><i></i></div>
+<div id="sbLabels" class="ui" aria-hidden="true"></div>
+<section id="sb" class="ui sketch" aria-label="Storyboard" hidden>
+  <header class="sbhead"><h2>Storyboard</h2><button class="sbx" id="sbClose" title="Close the storyboard (S)" aria-label="Close the storyboard">×</button></header>
+  <div class="ftools" id="sbTools" role="toolbar" aria-label="Marks">
+    <button class="tool" data-tool="csl" title="Circle a square">◯ Circle</button>
+    <button class="tool" data-tool="cal" title="Arrow: click the start square, then the end square">→ Arrow</button>
+    <button class="tool" data-tool="zone" title="Hatch a square">▨ Zone</button>
+    <button class="tool" data-tool="cross" title="Cross out a square">✕ Cross</button>
+    <button class="tool" data-tool="tick" title="Tick a square">✓ Tick</button>
+    <button class="tool" data-tool="label" title="Write a label next to a square">✎ Label</button>
+    <button class="tool" data-tool="erase" title="Erase a square's marks: delete the ones drawn at this move, stop earlier ones here">⌫ Erase</button>
+  </div>
+  <div class="frow">
+    <div class="fcolors" id="sbColors" role="radiogroup" aria-label="Pencil colour">
+      <button class="swatch on" data-color="R" role="radio" aria-checked="true" title="Red pencil" style="--c:#c2361f"></button>
+      <button class="swatch" data-color="B" role="radio" aria-checked="false" title="Blue pencil" style="--c:#2b56b8"></button>
+      <button class="swatch" data-color="G" role="radio" aria-checked="false" title="Graphite" style="--c:#3a372f"></button>
+      <button class="swatch" data-color="Y" role="radio" aria-checked="false" title="Highlighter" style="--c:#f2c21c"></button>
+    </div>
+    <input id="sbLabelText" type="text" placeholder="label text, e.g. weak" hidden aria-label="Label text">
+  </div>
+  <div class="frow">
+    <button class="btn sketch" id="sbView" title="Use the view on screen as the film's camera from this move on">Use this view</button>
+    <button class="btn sketch" id="sbBeat" title="Start a new beat (a new caption) at this move">＋ New beat here</button>
+    <button class="btn sketch" id="sbClear" title="Take down every mark showing, from this move on">Clear marks</button>
+  </div>
+  <div id="sbHint" class="fnote"></div>
+  <ol id="sbBeats"></ol>
+  <div class="frow sbfoot">
+    <button class="btn sketch" id="sbSave" title="Download the storyboard as an annotated .pgn story">Save .pgn</button>
+    <button class="btn sketch" id="sbFilm" title="Open the storyboard in the film studio to preview, edit and export it">Open in film</button>
+  </div>
+</section>
+
 <nav id="toolbar" class="ui">
   <button class="btn sketch" id="bNew" title="New game"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20.5 3.5v5h-5"/></svg><span class="lbl">New game</span></button>
   <button class="btn sketch" id="bUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lbl">Undo</span></button>
@@ -274,6 +373,7 @@
   <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
   <button class="btn sketch" id="bColour" aria-pressed="false" title="Colour: ink and wash on a wooden board (K)"><svg viewBox="0 0 24 24"><path d="M12 3c5 0 9 3.6 9 8 0 2.6-2 4-4.2 4H15a2 2 0 0 0-1.4 3.4c.6.7.2 2.6-1.6 2.6-5 0-9-4-9-9s4-9 9-9z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg><span class="lbl">Colour</span></button>
   <button class="btn sketch" id="bWiggle" title="Toggle line wiggle"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
+  <button class="btn sketch" id="bBoard" aria-pressed="false" title="Storyboard: add captions, marks and camera views to this game, then open it as a film (S)"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 15h7M13 18.5h5"/></svg><span class="lbl">Storyboard</span></button>
   <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
   <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
 </nav>
@@ -766,9 +866,10 @@ const outlineB = new THREE.ShaderMaterial({
 });
 // Black pieces get a thin paper halo just outside their ink line, so a dark piece standing in front of another
 // stays a separate silhouette. It sits a touch behind the ink shell (polygon offset) and stops above the foot,
-// so it never rings the base on the board.
+// so it never rings the base on the board. Its width follows the piece's size on screen: a hairline when the
+// board is seen from far away, up to uWidth in close-ups. uPx is the pixel ratio.
 const HALO_VS = /* glsl */`
-  uniform vec2 uRes; uniform float uWidth; uniform float uTime;
+  uniform vec2 uRes; uniform float uWidth; uniform float uTime; uniform float uPx;
   varying float vY;
   float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
   void main() {
@@ -778,14 +879,16 @@ const HALO_VS = /* glsl */`
     vec2 d = (projectionMatrix * vec4(vn, 0.0)).xy * uRes;
     float l = length(d); d = l > 1e-6 ? d / l : vec2(0.0);
     float j = h3(floor(position * 9.0) + vec3(floor(uTime * 5.0)));
-    clip.xy += d * uWidth * (0.85 + 0.3 * j) * 2.0 / uRes * clip.w;
+    float ppu = projectionMatrix[1][1] * uRes.y * 0.5 / clip.w / uPx; // CSS pixels per world unit at this depth
+    float w = uPx * mix(1.9, uWidth, smoothstep(45.0, 230.0, ppu));
+    clip.xy += d * w * (0.85 + 0.3 * j) * 2.0 / uRes * clip.w;
     gl_Position = clip;
   }`;
 const HALO_FS = /* glsl */`
   uniform vec3 uHalo; varying float vY;
   void main() { if (vY < 0.1) discard; gl_FragColor = vec4(uHalo, 1.0); }`;
 const haloMat = new THREE.ShaderMaterial({
-  uniforms: { uRes: U.uRes, uTime: U.uTime, uHalo: U.uHalo, uWidth: { value: 4.4 } },
+  uniforms: { uRes: U.uRes, uTime: U.uTime, uHalo: U.uHalo, uWidth: { value: 4.4 }, uPx: { value: 1 } },
   vertexShader: HALO_VS, fragmentShader: HALO_FS, side: THREE.BackSide,
   polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 8,
 });
@@ -1712,7 +1815,9 @@ function deselectVisualOnly() { for (const m of markerPool) if (m.userData.kind 
 function commit(m) {
   let res;
   try { res = chess.move(m); } catch (e) { deselect(); sync(); return; }
-  redoStack = [];
+  const next = redoStack[redoStack.length - 1];
+  if (next && next.from === res.from && next.to === res.to && (next.promotion || null) === (res.promotion || null)) redoStack.pop(); // same as the next move in the line
+  else { if (redoStack.length) sbPruneAfter(chess.history().length - 1); redoStack = []; }
   deselect();
   sync();
   updateUI();
@@ -1734,6 +1839,8 @@ function redo() {
   deselect(); sync(); updateUI();
 }
 function newGame() {
+  if (sb.notes.size && !confirm('Start a new game? Your storyboard captions and marks will be cleared.')) return;
+  sb.notes.clear(); sb.dirty = false;
   if (pending) cancelPromotion();
   chess.reset(); redoStack = []; overShownFor = null;
   deselect(); sync(); updateUI(); hideModal(overEl);
@@ -1782,6 +1889,7 @@ function updateUI() {
   }
   renderLog();
   refreshMarkers();
+  if (sb.on) { renderStoryboard(); sbRefreshMarks(); }
 }
 
 function renderLog() {
@@ -1860,10 +1968,12 @@ let userMovedCamera = false, viewSide = 'w', camTween = null;
 controls.addEventListener('start', () => { if (!camTween) userMovedCamera = true; hideHint(); });
 
 function fitDistance() {
-  const vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+  // fit into the part of the screen the storyboard panel leaves free
+  const { dx, dy } = sbShift(), vt = Math.tan(camera.fov * Math.PI / 360) * (1 - 2 * dy / innerHeight);
+  const aspect = (innerWidth - 2 * dx) / (innerHeight - 2 * dy), ht = vt * aspect;
   // landscape: fit board + capture trays; portrait: fit the board, trays may peek off the sides
-  const halfW = camera.aspect >= 1.1 ? 7.4 : 5.3;
-  return clamp(Math.max(halfW / Math.tan(hf / 2), 5.4 / Math.tan(vf / 2)), 9, 40);
+  const halfW = aspect >= 1.1 ? 7.4 : 5.3;
+  return clamp(Math.max(halfW / ht, 5.4 / vt), 9, 40);
 }
 // the diagram view looks (almost) straight down; exactly vertical would leave the camera without an up direction
 function defaultSpherical(side) { return new THREE.Spherical(fitDistance() * (diagram.on ? 0.92 : 1), diagram.on ? 0.06 : 0.74, side === 'w' ? 0 : Math.PI); }
@@ -1925,6 +2035,7 @@ function onPointerDown(e) {
   if (activePointers.size > 1) { cancelDrag(); controls.enabled = !camTween; return; }
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (pending || camTween) return;
+  if (sb.on && sb.tool) { sb.press = { x: e.clientX, y: e.clientY, id: e.pointerId }; return; } // a click marks the board; a drag orbits
   setRay(e);
   const sq = pickSquare();
 
@@ -1963,6 +2074,7 @@ canvas.addEventListener('pointermove', (e) => {
     return;
   }
   if (e.pointerType !== 'mouse' || e.buttons) return;
+  if (sb.on && sb.tool) { hoverObj = null; canvas.style.cursor = 'crosshair'; return; }
   setRay(e);
   const o = pickPiece();
   hoverObj = (o && !gameOver() && !pending && o.color === chess.turn()) ? o : null;
@@ -1977,6 +2089,10 @@ canvas.addEventListener('pointerleave', () => { hoverObj = null; });
 
 function onPointerUp(e) {
   activePointers.delete(e.pointerId);
+  if (sb.press && e.pointerId === sb.press.id) {
+    const p0 = sb.press; sb.press = null;
+    if (sb.tool && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) <= 6) { setRay(e); const sq = pickSquare(); if (sq) sbAnnotate(sq); }
+  }
   if (drag && e.pointerId === drag.id) {
     const d = drag; drag = null;
     if (d.obj) d.obj.dragging = false;
@@ -2046,6 +2162,12 @@ addEventListener('keydown', (e) => {
     }
     return;
   }
+  const typing = ['TEXTAREA', 'SELECT'].includes(e.target.tagName) || (e.target.tagName === 'INPUT' && e.target.type !== 'range');
+  if (typing) { if (e.key === 'Escape') e.target.blur(); return; } // storyboard captions and labels
+  if (e.key === 'Escape' && sb.on && (sb.arrowFrom || sb.tool)) { if (sb.arrowFrom) sb.arrowFrom = null; else sb.tool = null; refreshSbTools(); return; }
+  if (sb.on && !mod && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); gotoPly(curPly() + (e.key === 'ArrowLeft' ? -1 : 1)); return; }
+  if (sb.on && !mod && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); sbDeleteFrom(curPly()); return; }
+  if (!mod && e.key.toLowerCase() === 's') { setStoryboard(!sb.on); return; }
   if (e.key === 'Escape') { if (pending) cancelPromotion(); else if (overEl.classList.contains('show')) hideModal(overEl); else deselect(); }
   else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
@@ -2062,6 +2184,7 @@ function resize() {
   if (film.active) return; // the film renders at a fixed 1080×1920; CSS scales the preview
   const w = innerWidth, h = innerHeight;
   $('hint').style.bottom = $('toolbar').offsetHeight + 26 + 'px'; // stay clear of the toolbar, however many rows it wraps to
+  document.documentElement.style.setProperty('--toolbar-h', $('toolbar').offsetHeight + 'px');
   renderer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   const pr = renderer.getPixelRatio();
@@ -2070,7 +2193,8 @@ function resize() {
   outlineA.uniforms.uWidth.value = 2.0 * pr * thin;
   outlineB.uniforms.uWidth.value = 1.0 * pr * thin;
   outlineB.uniforms.uOffset.value.set(1.3 * pr, -1.0 * pr);
-  haloMat.uniforms.uWidth.value = 4.4 * pr * thin;
+  haloMat.uniforms.uWidth.value = 4.4 * thin; haloMat.uniforms.uPx.value = pr;
+  sbPlaceFrame();
   for (const m of lineMats) m.resolution.set(w, h);
   if (!userMovedCamera && !camTween) setView(viewSide, false);
 }
@@ -2086,6 +2210,7 @@ function frame(rafNow) {
   if (film.active) { film.onFrame(dt); return; }
   updateWorld(dt, rafNow);
   updateGameCamera(rafNow);
+  if (sb.on) { updateAnnots(performance.now() / 1000); placeSbLabels(); }
   renderer.render(scene, camera);
 }
 
@@ -2491,7 +2616,7 @@ function compileStory(story, vo = {}) {
           } else if (tag.k === 'hold') t += parseFloat(args) || 1;
           else if (tag.k === 'think') {
             const sq = args.trim(); A.push({ t, type: 'think', sq, dur: 1.1 }); t += 1.1;
-          } else if (tag.k === 'clear') A.push({ t, type: 'clear' });
+          } else if (tag.k === 'clear') A.push({ t: mt, type: 'clear', squares: args.split(/[\s,]+/).filter((x) => SQ_RE.test(x)) });
           else if (tag.k === 'recap') {
             const list = quoted(args).split('|').map((x) => x.trim()).filter(Boolean);
             A.push({ t, type: 'recap', list }); t += list.length * 0.9 + 0.8;
@@ -3060,7 +3185,12 @@ function applyAction(a, b, live) {
     case 'annot': addAnnot(a.item, nowS); break;
     case 'label': film.labels.push({ sq: a.sq, text: a.text, t0: nowS, tOut: null, seed: 500 + film.labels.length }); break;
     case 'think': { const o = pieces.find((p) => p.square === a.sq); if (o) o.think = { t0: nowMs, dur: a.dur }; break; }
-    case 'clear': clearAnnots(nowS); break;
+    case 'clear': { // all marks, or only the ones touching the given squares
+      const hit = (sq) => !a.squares.length || a.squares.includes(sq);
+      clearAnnots(nowS, (x) => [x.sq, x.from, x.to].some((sq) => sq && hit(sq)));
+      for (const l of film.labels) if (l.tOut == null && hit(l.sq)) l.tOut = nowS;
+      break;
+    }
     case 'recap': film.recap = { list: a.list, t0: nowS }; break;
     case 'move': {
       filmMode.moveDur = a.moveDur;
@@ -3421,7 +3551,7 @@ function enterFilm() {
   camera.setViewOffset(FILM_W, FILM_H, 0, FILM_H * 0.06, FILM_W, FILM_H);
   camera.updateProjectionMatrix();
   U.uPR.value = 1.6; U.uRes.value.set(FILM_W, FILM_H);
-  outlineA.uniforms.uWidth.value = 3.0; outlineB.uniforms.uWidth.value = 1.5; outlineB.uniforms.uOffset.value.set(2.0, -1.5); haloMat.uniforms.uWidth.value = 6.6;
+  outlineA.uniforms.uWidth.value = 3.0; outlineB.uniforms.uWidth.value = 1.5; outlineB.uniforms.uOffset.value.set(2.0, -1.5); haloMat.uniforms.uWidth.value = 4.4; haloMat.uniforms.uPx.value = 1.5;
   lineMats.forEach((m, i) => { m.resolution.set(FILM_W, FILM_H); m.linewidth = filmSaved.lw[i] * 1.6; });
   annotMesh.visible = true;
   if (!grainPattern) buildGrain();
@@ -3453,6 +3583,7 @@ function exitFilm() {
   camera.position.copy(filmSaved.camPos); controls.target.copy(filmSaved.target); controls.update();
   controls.enabled = true;
   lastT = performance.now();
+  if (sb.on) { camera.fov = CAM_FOV; camera.updateProjectionMatrix(); annotMesh.visible = true; sbPlaceFrame(); }
   updateUI();
 }
 
@@ -3882,6 +4013,400 @@ $('fLoad').onclick = () => $('fPgnInput').click();
 $('fNew').onclick = newStory;
 $('fPgnInput').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) loadPgnFile(f); e.target.value = ''; });
 $('film').querySelector('.film-stage').appendChild(compCanvas);
+
+/* ------------------------------------------------------------------ *
+ *  Storyboard: direct a film from the game. Each position of the game (by ply) can hold a note:
+ *  a caption and chapter title (which open a beat), pencil marks and a camera view. Marks show on the
+ *  board as they will in the film, and the storyboard writes the same annotated PGN the studio reads.
+ * ------------------------------------------------------------------ */
+const sb = { on: false, notes: new Map(), tool: null, color: 'R', arrowFrom: null, press: null, dirty: false, labels: [], notice: null };
+const sbNote = (p, make) => {
+  let n = sb.notes.get(p);
+  if (!n && make) { n = { beat: false, caption: '', title: '', cam: null, marks: [], stops: [] }; sb.notes.set(p, n); }
+  return n;
+};
+const sbOpens = (n) => !!n && (n.beat || !!n.caption.trim() || !!n.title.trim()); // starts a card in the storyboard
+const sbFilmOpens = (n) => !!n && (!!n.caption.trim() || !!n.title.trim()); // starts a beat in the film
+const sbEmpty = (n) => !n.beat && !n.caption.trim() && !n.title.trim() && !n.cam && !n.marks.length && !n.stops.length;
+const sbHasMarks = (n) => !!n && (n.marks.length || n.stops.length || n.cam);
+const MARK_GLYPH = { csl: '◯', cal: '→', zone: '▨', cross: '✕', tick: '✓', label: '✎' };
+const MARK_CSS = { R: 'var(--red)', B: 'var(--blue)', G: 'var(--ink)', Y: '#b8860b' };
+const curPly = () => chess.history().length;
+
+// The whole line: the moves played, plus the ones stepped back from (the redo stack)
+function fullLine() {
+  const sans = chess.history();
+  const g = new Chess(chess.fen());
+  for (const m of [...redoStack].reverse()) { try { sans.push(g.move(m).san); } catch (e) { break; } }
+  return { sans, end: g };
+}
+function sbBeats(n) {
+  const starts = [0];
+  for (let p = 1; p <= n; p++) if (sbOpens(sb.notes.get(p))) starts.push(p);
+  return starts.map((s, i) => ({ start: s, end: i + 1 < starts.length ? starts[i + 1] : n }));
+}
+const sbBeatAt = (beats, p) => beats.reduce((acc, b, i) => (b.start <= p ? i : acc), 0);
+const plyLabel = (p, sans, force) => (p % 2 ? `${(p + 1) / 2}. ` : force ? `${p / 2}… ` : '') + sans[p - 1];
+const markSquares = (m) => (m.k === 'cal' ? [m.v.slice(1, 3), m.v.slice(3, 5)] : m.k === 'csl' || m.k === 'zone' ? [m.v.slice(1, 3)] : [m.v]);
+const markText = (m) => `${MARK_GLYPH[m.k]} ${m.k === 'cal' ? m.v.slice(1, 3) + '→' + m.v.slice(3, 5) : markSquares(m)[0]}${m.k === 'label' ? ` “${m.text}”` : ''}`;
+function markItem(m) {
+  const color = COLORS[m.v[0]] || 'graphite';
+  if (m.k === 'cal') return { kind: 'arrow', color, from: m.v.slice(1, 3), to: m.v.slice(3, 5) };
+  if (m.k === 'csl') return { kind: 'circle', color, sq: m.v.slice(1, 3) };
+  if (m.k === 'zone') return { kind: 'zone', color, sq: m.v.slice(1, 3) };
+  return { kind: m.k, color: m.k === 'tick' ? 'blue' : 'red', sq: m.v };
+}
+const strHash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
+
+// The marks showing at position p: drawn since the beat began, less the ones stopped since, as in the film
+function sbVisible(p) {
+  const beats = sbBeats(fullLine().sans.length), b = beats[sbBeatAt(beats, p)];
+  let shown = [];
+  for (let q = b.start; q <= p; q++) {
+    const n = sb.notes.get(q);
+    if (!n) continue;
+    if (n.stops.length) shown = shown.filter(({ m }) => !n.stops.includes('*') && !markSquares(m).some((sq) => n.stops.includes(sq)));
+    for (const m of n.marks) shown.push({ m, q });
+  }
+  return shown;
+}
+function sbRefreshMarks(fresh = null) {
+  annots = [];
+  sb.labels = [];
+  if (sb.on && !film.active) {
+    const nowS = performance.now() / 1000;
+    for (const { m, q } of sbVisible(curPly())) {
+      if (m.k === 'label') { sb.labels.push(m); continue; }
+      const it = markItem(m), dur = it.kind === 'zone' ? 0.8 : it.kind === 'circle' ? 0.55 : 0.6;
+      annots.push({ ...it, seed: strHash(q + m.k + m.v) % 100000, t0: m === fresh ? nowS : nowS - 10, dur, tOut: null });
+    }
+  }
+  annotDirty = true; updateAnnots(performance.now() / 1000);
+  const box = $('sbLabels');
+  box.innerHTML = '';
+  for (const m of sb.labels) { const d = document.createElement('div'); d.className = 'sblabel'; d.textContent = m.text; box.appendChild(d); m.el = d; }
+  placeSbLabels();
+}
+const sbProj = new THREE.Vector3();
+function placeSbLabels() {
+  for (const m of sb.labels) {
+    const { x, z } = sqToXZ(m.v);
+    sbProj.set(x, 0.95, z).project(camera);
+    m.el.style.left = ((sbProj.x + 1) / 2 * innerWidth) + 'px';
+    m.el.style.top = ((1 - sbProj.y) / 2 * innerHeight - 14) + 'px';
+  }
+}
+// The film's 9:16 frame, as it will see the board from the camera on screen (the film is shot at CAM_FOV,
+// with the picture nudged up by 6% to leave room for the caption)
+// The open panel takes room at the side (or the bottom on phones): the picture shifts by half of that,
+// so the board centres in what's left
+function sbShift() {
+  if (!sb.on || film.active) return { dx: 0, dy: 0 };
+  const r = $('sb').getBoundingClientRect();
+  return innerWidth > 760 ? { dx: (innerWidth - r.left) / 2, dy: 0 } : { dx: 0, dy: (innerHeight - r.top) / 2 };
+}
+function sbPlaceFrame() {
+  if (film.active) return;
+  const W = innerWidth, H = innerHeight, { dx, dy } = sbShift();
+  if (dx || dy) camera.setViewOffset(W, H, dx, dy, W, H); else camera.clearViewOffset();
+  if (!sb.on) return;
+  const w = H * 9 / 16, f = $('sbFrame');
+  f.style.left = W / 2 - dx - w / 2 + 'px'; f.style.top = H * 0.06 + 'px'; f.style.width = w + 'px'; f.style.height = H * 0.94 + 'px';
+}
+
+function sbHint(msg, err = false) { const h = $('sbHint'); h.textContent = msg; h.classList.toggle('err', err); }
+function sbDefaultHint() {
+  const p = curPly(), { sans } = fullLine();
+  const where = p ? `after ${plyLabel(p, sans, true)}` : 'at the start';
+  if (sb.tool === 'erase') return sbHint(`Click a square: marks drawn ${where} are deleted, and marks from earlier moves stop here.`);
+  if (sb.tool === 'cal') return sbHint(sb.arrowFrom ? `Arrow from ${sb.arrowFrom}: now click the square it points to.` : `Click the start square, then the end square. The arrow goes ${where}.`);
+  if (sb.tool === 'label') return sbHint(`Type the label, then click a square. It goes ${where}.`);
+  if (sb.tool) return sbHint(`Click a square to add ${TOOL_NAMES[sb.tool]} ${where}. Drag to move the camera.`);
+  sbHint(`Pick a tool to mark the board ${where}, or keep playing. Click a move below to go back to it.`);
+}
+function refreshSbTools() {
+  document.querySelectorAll('#sbTools .tool').forEach((b) => b.classList.toggle('on', b.dataset.tool === sb.tool));
+  $('sbLabelText').hidden = sb.tool !== 'label';
+  document.body.classList.toggle('tooling', sb.on && !!sb.tool);
+  sbDefaultHint();
+}
+function sbChanged(fresh = null) { sb.dirty = true; sbRefreshMarks(fresh); renderStoryboard(); }
+
+function sbAnnotate(sq) {
+  const p = curPly();
+  if (sb.tool === 'erase') { sbErase(sq); return; }
+  let m;
+  if (sb.tool === 'cal') {
+    if (!sb.arrowFrom) { sb.arrowFrom = sq; sbDefaultHint(); return; }
+    const from = sb.arrowFrom; sb.arrowFrom = null;
+    if (from === sq) { sbHint('Arrow cancelled. Click a start square.'); return; }
+    m = { k: 'cal', v: sb.color + from + sq };
+  } else if (sb.tool === 'label') {
+    const text = $('sbLabelText').value.trim().replace(/"/g, '”').replace(/[\]{}]/g, '');
+    if (!text) { sbHint('Type the label text first, then click a square.', true); $('sbLabelText').focus(); return; }
+    m = { k: 'label', v: sq, text };
+  } else m = { k: sb.tool, v: sb.tool === 'cross' || sb.tool === 'tick' ? sq : sb.color + sq };
+  const n = sbNote(p, true);
+  if (m.k === 'label') n.marks = n.marks.filter((x) => !(x.k === 'label' && x.v === sq));
+  else if (n.marks.some((x) => x.k === m.k && x.v === m.v)) { sbDefaultHint(); return; }
+  n.marks.push(m);
+  sbChanged(m);
+  sbDefaultHint();
+}
+// Erasing a square: marks drawn at this very move are deleted; marks from earlier moves stop here
+// (they showed until now, and are gone from this move on)
+function sbErase(sq) {
+  const p = curPly(), shown = sbVisible(p).filter(({ m }) => markSquares(m).includes(sq));
+  if (!shown.length) { sbHint(`No mark on ${sq} at this position.`, true); return; }
+  const n = sb.notes.get(p);
+  if (n && shown.some(({ q }) => q === p)) n.marks = n.marks.filter((m) => !markSquares(m).includes(sq));
+  if (shown.some(({ q }) => q < p)) { const nn = sbNote(p, true); if (!nn.stops.includes(sq)) nn.stops.push(sq); }
+  const here = sb.notes.get(p);
+  if (here && sbEmpty(here)) sb.notes.delete(p);
+  sbChanged();
+  sbHint(shown.some(({ q }) => q < p) ? `The marks on ${sq} stop here: they show until this move, then they're gone.` : `Erased the marks on ${sq}.`);
+}
+function sbClearAll() {
+  const p = curPly(), shown = sbVisible(p);
+  if (!shown.length) { sbHint('There are no marks showing to clear.', true); return; }
+  const n = sb.notes.get(p);
+  if (n) n.marks = [];
+  if (shown.some(({ q }) => q < p)) sbNote(p, true).stops = ['*'];
+  if (n && sbEmpty(n)) sb.notes.delete(p);
+  sbChanged();
+  sbHint('All the marks stop here: from this move on the board is clean until you mark it again.');
+}
+
+function gotoPly(p) {
+  if (pending || film.active) return;
+  const n = curPly();
+  if (p === n) return;
+  while (curPly() > p) { const m = chess.undo(); if (!m) break; redoStack.push({ from: m.from, to: m.to, promotion: m.promotion }); }
+  while (curPly() < p && redoStack.length) { try { chess.move(redoStack.pop()); } catch (e) { redoStack = []; } }
+  deselect(); sync({ instant: Math.abs(p - n) > 1 }); updateUI(); hideModal(overEl);
+}
+// Deletes move q and every move after it (a later move depends on the ones before it), with their notes
+function sbDeleteFrom(q) {
+  if (pending || film.active) return;
+  const { sans } = fullLine(), n = sans.length;
+  if (q < 1 || q > n) return;
+  const count = n - q + 1, after = count - 1;
+  const what = `${plyLabel(q, sans, true)}${after ? ` and the ${after === 1 ? 'move' : after + ' moves'} after it` : ''}`;
+  const lost = [...sb.notes.entries()].filter(([k, nt]) => k >= q && !sbEmpty(nt)).map(([, nt]) => nt);
+  const captions = lost.filter(sbFilmOpens).length, marked = lost.some(sbHasMarks);
+  const parts = [captions === 1 ? 'a beat and its caption' : captions ? `${captions} beats and their captions` : '', marked ? 'the marks on them' : ''].filter(Boolean);
+  if (lost.length && !confirm(`Delete ${what}? ${parts.length ? parts.join(' and ') : 'Their notes'} would go too.`.replace('? a', '? A').replace('? the', '? The'))) return;
+  gotoPly(q - 1);
+  redoStack = [];
+  for (const k of [...sb.notes.keys()]) if (k >= q) sb.notes.delete(k);
+  sb.dirty = true;
+  updateUI();
+  sbHint(`Deleted ${what}.`);
+}
+// A move played away from the storyboard's line replaces the rest of it, and its notes
+function sbPruneAfter(p) {
+  const gone = [...sb.notes.keys()].filter((q) => q > p);
+  if (!gone.length) return;
+  const beats = gone.filter((q) => sbFilmOpens(sb.notes.get(q))).length;
+  for (const q of gone) sb.notes.delete(q);
+  sb.notice = `That move starts a new line, so the storyboard notes on the old one were dropped${beats ? ` (including ${plural(beats, 'beat')} with captions)` : ''}.`;
+}
+
+function lookThrough(cam) {
+  const v = cam.split(/\s+/).slice(1).map(Number);
+  if (v.length < 6 || v.some(isNaN)) return;
+  const [tx, ty, tz, r, phi, theta] = v;
+  camTween = null;
+  controls.target.set(tx, ty, tz);
+  camera.position.setFromSpherical(new THREE.Spherical(r, phi, theta)).add(controls.target);
+  controls.update(); userMovedCamera = true;
+  placeSbLabels();
+}
+
+function renderStoryboard() {
+  if (!sb.on) return;
+  const { sans } = fullLine(), n = sans.length, p = curPly(), beats = sbBeats(n), cur = sbBeatAt(beats, p);
+  const list = $('sbBeats');
+  list.innerHTML = '';
+  beats.forEach((b, i) => {
+    const note = sb.notes.get(b.start) || { caption: '', title: '' };
+    const li = document.createElement('li');
+    li.className = 'sbbeat' + (i === cur ? ' on' : '');
+    const range = b.end > b.start ? `${plyLabel(b.start + 1, sans, true)}${b.end > b.start + 1 ? ' – ' + plyLabel(b.end, sans, true) : ''}` : 'no moves yet';
+    li.innerHTML = `<div class="sbbh"><b>Beat ${i + 1}</b><span class="sbr"></span>${i ? '<button class="sbx" title="Remove this beat: its moves join the beat before" aria-label="Remove beat">×</button>' : ''}</div>
+      <input class="sbtitle" placeholder="${i ? 'Chapter title (optional)' : 'Film title (optional)'}" aria-label="Chapter title">
+      <textarea class="sbcap" rows="2" aria-label="Caption" placeholder="${i ? "What's happening in these moves…" : 'Introduce the game: who is playing, and what to watch for…'}"></textarea>
+      <div class="sbmoves"></div><div class="sbnotes"></div>`;
+    li.querySelector('.sbr').textContent = range;
+    const title = li.querySelector('.sbtitle'), cap = li.querySelector('.sbcap');
+    title.value = note.title; cap.value = note.caption;
+    title.oninput = () => { const nn = sbNote(b.start, true); nn.title = title.value; sb.dirty = true; };
+    cap.oninput = () => { const nn = sbNote(b.start, true); nn.caption = cap.value; sb.dirty = true; warn.hidden = !!(cap.value.trim() || title.value.trim()) || i === 0; };
+    const go = () => gotoPly(b.start);
+    li.querySelector('b').onclick = go; li.querySelector('.sbr').onclick = go;
+    if (i) li.querySelector('.sbx').onclick = () => {
+      const nn = sb.notes.get(b.start);
+      if (nn && (nn.caption.trim() || nn.title.trim()) && !confirm(`Remove beat ${i + 1} and its caption? Its moves join the beat before.`)) return;
+      if (nn) { nn.beat = false; nn.caption = ''; nn.title = ''; if (sbEmpty(nn)) sb.notes.delete(b.start); }
+      sbChanged();
+    };
+    const warn = document.createElement('div');
+    warn.className = 'sbwarn'; warn.textContent = 'No caption yet: in the film, these moves join the beat before.';
+    warn.hidden = i === 0 || sbFilmOpens(note);
+    li.insertBefore(warn, li.querySelector('.sbmoves'));
+    const mv = li.querySelector('.sbmoves');
+    const chip = (q, label, extra = '') => {
+      const btn = document.createElement('button');
+      const nq = sb.notes.get(q);
+      btn.className = 'sbmv' + extra + (q === p ? ' cur' : '') + (sbHasMarks(nq) ? ' has' : '');
+      btn.textContent = label; btn.title = q ? `Go to the position after ${plyLabel(q, sans, true)}` : 'Go to the start';
+      btn.onclick = () => gotoPly(q);
+      if (extra) { mv.appendChild(btn); return; } // the beat's starting position isn't a move
+      const wrap = document.createElement('span'), del = document.createElement('button');
+      wrap.className = 'sbmvw' + (q === n ? ' last' : '');
+      del.className = 'sbdel'; del.textContent = '×';
+      del.title = `Delete ${plyLabel(q, sans, true)}${q < n ? ' and the moves after it' : ''}`; del.setAttribute('aria-label', del.title);
+      del.onclick = () => sbDeleteFrom(q);
+      wrap.append(btn, del);
+      mv.appendChild(wrap);
+    };
+    chip(b.start, b.start ? 'here' : 'start', ' start');
+    for (let q = b.start + 1; q <= b.end; q++) chip(q, plyLabel(q, sans, q === b.start + 1));
+    const notesBox = li.querySelector('.sbnotes');
+    for (let q = b.start; q <= (i === beats.length - 1 ? b.end : b.end - 1); q++) {
+      const nq = sb.notes.get(q);
+      if (!sbHasMarks(nq)) continue;
+      const row = document.createElement('div');
+      row.className = 'sbnote';
+      row.append(q ? `after ${plyLabel(q, sans, true)}:` : 'at the start:');
+      const addChip = (text, color, onRemove, onLook) => {
+        const c = document.createElement('span');
+        c.className = 'sbchip'; c.style.color = color || '';
+        c.append(text);
+        if (onLook) { const l = document.createElement('button'); l.className = 'look'; l.textContent = 'look'; l.title = 'Look through this camera'; l.onclick = onLook; c.append(l); }
+        const x = document.createElement('button'); x.textContent = '×'; x.title = 'Remove'; x.onclick = onRemove; c.append(x);
+        row.append(c);
+      };
+      if (nq.cam) addChip('📷 your view', '', () => { nq.cam = null; if (sbEmpty(nq)) sb.notes.delete(q); sbChanged(); }, () => { gotoPly(q); lookThrough(nq.cam); });
+      for (const st of nq.stops) addChip(st === '*' ? '⌫ all marks end' : `⌫ ${st} ends`, 'var(--ink-soft)',
+        () => { nq.stops = nq.stops.filter((x) => x !== st); if (sbEmpty(nq)) sb.notes.delete(q); sbChanged(); });
+      for (const m of nq.marks) addChip(markText(m), m.k === 'label' || m.k === 'cross' ? 'var(--red)' : m.k === 'tick' ? 'var(--blue)' : MARK_CSS[m.v[0]],
+        () => { nq.marks = nq.marks.filter((x) => x !== m); if (sbEmpty(nq)) sb.notes.delete(q); sbChanged(); });
+      notesBox.append(row);
+    }
+    list.appendChild(li);
+  });
+  const on = list.querySelector('.sbbeat.on');
+  if (on && !list.contains(document.activeElement)) on.scrollIntoView({ block: 'nearest' });
+  const here = sb.notes.get(p);
+  $('sbBeat').disabled = p === 0 || sbOpens(here);
+  $('sbFilm').disabled = !n;
+  if (sb.notice) { sbHint(sb.notice, true); sb.notice = null; } else sbDefaultHint();
+}
+
+function setStoryboard(on) {
+  if (film.active) return;
+  sb.on = on;
+  document.body.classList.toggle('boarding', on);
+  $('sb').hidden = !on;
+  $('bBoard').classList.toggle('on', on); $('bBoard').setAttribute('aria-pressed', String(on));
+  camera.fov = on ? CAM_FOV : 36; camera.updateProjectionMatrix(); // see the board through the film's lens
+  annotMesh.visible = on;
+  if (!on) { sb.tool = null; sb.arrowFrom = null; }
+  sbPlaceFrame(); refreshSbTools(); renderStoryboard(); sbRefreshMarks();
+  if (!userMovedCamera && !camTween) setView(viewSide, true);
+}
+
+// The storyboard as an annotated PGN story, the same format the film studio reads and writes
+const sbClean = (x) => x.trim().replace(/"/g, '”').replace(/[\]{}]/g, '').replace(/\s+/g, ' ');
+function sbComment(n) {
+  const tags = [];
+  if (n.title.trim()) tags.push(`[%title "${sbClean(n.title)}"]`);
+  if (n.cam) tags.push(`[%cam ${n.cam}]`);
+  if (n.stops.length) tags.push(n.stops.includes('*') ? '[%clear]' : `[%clear ${n.stops.join(',')}]`);
+  for (const k of ['csl', 'cal', 'zone', 'cross', 'tick']) {
+    const list = n.marks.filter((m) => m.k === k).map((m) => m.v);
+    if (list.length) tags.push(`[%${k} ${list.join(',')}]`);
+  }
+  for (const m of n.marks) if (m.k === 'label') tags.push(`[%label ${m.v} "${sbClean(m.text)}"]`);
+  const cap = n.caption.trim().replace(/[{}]/g, '').replace(/\[%/g, '[').replace(/\s*\n\s*/g, ' ');
+  if (!tags.length && !cap) return '';
+  return cap ? `{ ${tags.length ? tags.join(' ') + '\n  ' : ''}${cap} }` : `{ ${tags.join(' ')} }`;
+}
+function storyboardPGN() {
+  const { sans, end } = fullLine();
+  const result = end.isCheckmate() ? (end.turn() === 'w' ? '0-1' : '1-0') : end.isDraw() ? '1/2-1/2' : '*';
+  const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  const first = sb.notes.get(0), name = (first && sbClean(first.title)) || 'My storyboard';
+  let out = `[Event "${name}"]\n[Date "${date}"]\n[White "White"]\n[Black "Black"]\n[Result "${result}"]\n[FilmHeader "${name}"]\n[FilmFile "storyboard"]\n\n`;
+  const c0 = first ? sbComment(first) : '';
+  if (c0) out += c0 + '\n';
+  let line = '', needNum = true;
+  sans.forEach((san, i) => {
+    const ply = i + 1, num = Math.floor(i / 2) + 1;
+    line += (line ? ' ' : '') + (i % 2 === 0 ? `${num}. ${san}` : needNum ? `${num}... ${san}` : san);
+    needNum = false;
+    const n = sb.notes.get(ply), c = n ? sbComment(n) : '';
+    if (c) {
+      if (sbFilmOpens(n)) { out += line + '\n\n' + c + '\n'; line = ''; } else line += ' ' + c;
+      needNum = true;
+    }
+    if (line.length > 72) { out += line + '\n'; line = ''; }
+  });
+  return out + (line ? line + ' ' : '') + result + '\n';
+}
+function sbOpenFilm() {
+  if (!fullLine().sans.length) { sbHint('Play some moves first: a film needs moves.', true); return; }
+  const text = storyboardPGN();
+  let st = STORIES.find((x) => x.id === 'storyboard');
+  if (st && st.generated != null && st.text !== st.generated
+    && !confirm('Opening the storyboard replaces the changes you made to its film in the studio. Continue?')) return;
+  const fresh = storyEntry('storyboard', text);
+  fresh.savedText = ''; fresh.generated = text;
+  if (st) Object.assign(st, fresh); else STORIES.push(st = fresh);
+  const p = curPly();
+  film.storyId = 'storyboard';
+  enterFilm();
+  if (!film.active) return;
+  storyNote('Your storyboard. Changes you make here stay in the studio; opening the storyboard again replaces them.');
+  const b = [...film.comp.beats].reverse().find((x) => x.ply0 <= p);
+  if (b) seekFilm(b.start);
+}
+
+$('bBoard').onclick = () => setStoryboard(!sb.on);
+$('sbClose').onclick = () => setStoryboard(false);
+document.querySelectorAll('#sbTools .tool').forEach((b) => {
+  b.onclick = () => { sb.tool = sb.tool === b.dataset.tool ? null : b.dataset.tool; sb.arrowFrom = null; if (sb.tool) deselect(); refreshSbTools(); };
+});
+document.querySelectorAll('#sbColors .swatch').forEach((b) => {
+  b.onclick = () => {
+    sb.color = b.dataset.color;
+    document.querySelectorAll('#sbColors .swatch').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+  };
+});
+$('sbView').onclick = () => {
+  const t = controls.target, sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t));
+  const view = [t.x, t.y, t.z, sph.radius].map((n) => n.toFixed(2)).concat([sph.phi, sph.theta].map((n) => n.toFixed(3))).join(' ');
+  sbNote(curPly(), true).cam = `view ${view}`;
+  sbChanged();
+  sbHint('Saved this view: the film uses it from this move until the camera changes or the beat ends.');
+};
+$('sbBeat').onclick = () => {
+  const p = curPly();
+  if (!p) return;
+  sbNote(p, true).beat = true;
+  sbChanged();
+  const card = $('sbBeats').querySelector('.sbbeat.on .sbcap');
+  if (card) card.focus();
+};
+$('sbSave').onclick = () => {
+  download(new Blob([storyboardPGN()], { type: 'application/x-chess-pgn' }), 'storyboard.pgn');
+  sb.dirty = false;
+  sbHint('Saved storyboard.pgn to your downloads. Load it in the film studio with Load PGN….');
+};
+$('sbFilm').onclick = sbOpenFilm;
+$('sbClear').onclick = sbClearAll;
+addEventListener('beforeunload', (e) => { if (sb.dirty && sb.notes.size) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ------------------------------------------------------------------ *
  *  Boot

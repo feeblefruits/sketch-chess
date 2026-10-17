@@ -24,7 +24,20 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 | Flip board / reset camera | F / C |
 | Diagram view on / off | D |
 | Colour on / off | K |
+| Storyboard on / off | S |
+| Storyboard: previous / next move | ← / → |
+| Storyboard: delete the move just played (and any after it) | Delete / Backspace |
 | Cancel selection or promotion | Esc |
+
+## Storyboard
+
+**Storyboard** (S) turns the game you're playing into a film without writing any PGN. The moves list becomes a column of beat cards, one per caption, and the board shows the film's 9:16 frame as a dashed guide.
+
+- **Play and direct**: play moves as usual. Click any move in a card (or use ← / →) to go back to that position; play a different move there and the line (with its notes) changes from that point. The × next to a move (shown on hover, and always on the current and last moves) deletes it and every move after it, as does Delete / Backspace for the move just played; it asks first if captions or marks would go with them.
+- **Captions**: each card has a caption and an optional chapter title. **＋ New beat here** starts a new card at the current move. A card's moves play while its caption is on screen.
+- **Marks**: pick Circle, Arrow, Zone, Cross, Tick or Label and a pencil colour, then click squares. Marks belong to the position on the board and stay up until the beat ends, as in the film, unless you stop them sooner: go to a later move and use **Erase** on the square (or **Clear marks** for all of them), and they show until that move, then disappear. Erase at the move where a mark was drawn, or the × on its chip, deletes it altogether.
+- **Camera**: frame the shot inside the dashed guide and press **Use this view**; the film uses it from that move on. *look* jumps back to a saved view.
+- **Open in film** opens the storyboard in the film studio, at the beat you're on, to preview, fine-tune in the story editor and export. **Save .pgn** downloads it as a story file. Opening the storyboard again replaces its film, so make final tweaks either in the storyboard or in the studio.
 
 ## Film studio
 
@@ -57,6 +70,7 @@ A story is a PGN file (optionally with `[Evals "0.20,0.35,#-3,…"]`, one engine
 | `[%cal Gd2d4,Rb6d4]` / `[%csl Rd5]` | Pencil arrows / circles that draw themselves on (G graphite, R red, B blue, Y highlighter) |
 | `[%zone Bd4]`, `[%trail Ga7a8]`, `[%cross c5]`, `[%tick e4]` | Hatched square, back-and-forth trail, scribbled-out square, tick |
 | `[%label d5 "isolated"]` | Handwritten label pinned to a square |
+| `[%clear]` / `[%clear c4,f7]` | Take down all the marks (or the ones on those squares) as the move before it lands |
 | `[%think c1]` | The piece hesitates (lifts and wobbles) before the next move |
 | `( variation )` | Played as a see-through "ghost" line, then crossed out (or ticked with `!`) and rewound |
 | `!` after a move | Slow motion |
