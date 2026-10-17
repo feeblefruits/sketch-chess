@@ -30,6 +30,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 
 The **Film** button turns an annotated game into a narrated, auto-directed vertical video (1080×1920, 60 fps MP4). It ships with three stories: **The Opera Game** (Morphy, Paris 1858), **The Game of the Century** (Byrne – Fischer, New York 1956) and the endgame of **Flohr vs Vidmar, Nottingham 1936**.
 
+- **＋ New** starts a story and opens it in the editor: the game you've played on the board, with an intro and a closing caption to fill in, or a short starter that explains the format if you haven't played one. It starts unsaved, so use **Save .pgn** to keep it.
 - **Pick a story** from the dropdown, or **Load PGN…** (or drop a `.pgn` on the panel) to film any game. Plain games from Lichess or chessgames.com work as they are; add `{comments}` and tags to narrate and direct them. A file with several games films the first one, and loading the same file again replaces it, so you can edit a story in a text editor and reload. Loaded files last for the session; the app doesn't store them.
 - **Preview**: Play/Pause (Space), scrub, or click a beat (← / → jump between beats). What you preview is exactly what gets recorded.
 - **Export MP4** renders frame by frame on a virtual clock, so playback speed doesn't matter, and encodes H.264 + AAC in the browser with WebCodecs ([Mediabunny](https://mediabunny.dev)). Use a recent Chrome or Edge.

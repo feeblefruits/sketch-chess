@@ -176,7 +176,7 @@
   #fStory { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 6px 8px; color: var(--ink); background: var(--paper-2);
     border: 2px solid var(--ink); border-radius: 12px 4px 10px 5px; cursor: pointer; }
   #fStory:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
-  #fLoad { flex: none; font-size: 16px; padding: 6px 10px; }
+  #fLoad, #fNew { flex: none; font-size: 16px; padding: 6px 10px; }
   #fStoryNote:empty { display: none; }
   #fStoryNote.err { color: var(--red); }
   .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -336,6 +336,7 @@
     <h2>Film studio</h2>
     <div class="frow fstory">
       <select id="fStory" aria-label="Story to film"></select>
+      <button class="btn sketch" id="fNew" title="Start a new story (from the game on the board, if you've played one)">＋ New</button>
       <button class="btn sketch" id="fLoad" title="Load a game or annotated story from a .pgn file">Load PGN…</button>
       <input type="file" id="fPgnInput" accept=".pgn,.txt" hidden>
     </div>
@@ -3153,6 +3154,47 @@ function switchStory(id) {
   seekFilm(0);
   return true;
 }
+// A new story: the game played on the board (if any), otherwise a short starter that explains the format.
+let newStoryCount = 0;
+function pgnMoves(sans, firstPly = 0) {
+  const out = [];
+  sans.forEach((san, i) => {
+    const ply = firstPly + i, num = Math.floor(ply / 2) + 1;
+    if (ply % 2 === 0) out.push(`${num}. ${san}`); else out.push(i === 0 ? `${num}... ${san}` : san);
+  });
+  const lines = [];
+  for (let i = 0; i < out.length; i += 16) lines.push(out.slice(i, i + 16).join(' '));
+  return lines.join('\n');
+}
+function newStoryText(n) {
+  const g = new Chess(), sans = [];
+  for (const m of (filmSaved && filmSaved.moves) || []) { try { sans.push(g.move(m).san); } catch (e) { break; } }
+  const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  const name = n > 1 ? `My film ${n}` : 'My film', file = n > 1 ? `my-film-${n}` : 'my-film';
+  const result = g.isCheckmate() ? (g.turn() === 'w' ? '0-1' : '1-0') : g.isDraw() ? '1/2-1/2' : '*';
+  const head = `[Event "${name}"]\n[Date "${date}"]\n[White "White"]\n[Black "Black"]\n[Result "${result}"]\n[FilmHeader "${name}"]\n[FilmFile "${file}"]\n\n`;
+  if (sans.length) return head +
+    `{ [%title "${name}"] [%cam overview]\n  Introduce the game here: who is playing, and what to watch for. }\n` +
+    `${pgnMoves(sans)}\n\n{ [%cam overview]\n  Sum up the game here. Split the game into more beats by adding comments with captions between the moves. }\n${result}\n`;
+  return head +
+    `{ [%title "${name}"] [%cam overview]\n  Every comment with text starts a new beat: a caption card and one narration line. Replace this one with your introduction. }\n` +
+    `1. e4 e5 2. Nf3 Nc6\n\n` +
+    `{ [%cam closeup b5 c6 e5]\n  Moves after a comment play while its caption is on screen. Paste your own game over these moves, or play one on the board and press New again. }\n` +
+    `3. Bb5 a6 { [%csl Rb5] }\n*\n`;
+}
+function newStory() {
+  if (film.exporting) return;
+  const n = ++newStoryCount, st = storyEntry('new-' + n, newStoryText(n));
+  st.savedText = ''; // never saved yet: the editor shows it as unsaved
+  STORIES.push(st);
+  populateStories();
+  if (!switchStory(st.id)) return;
+  setEditing(true);
+  const fromGame = filmSaved && filmSaved.moves && filmSaved.moves.length;
+  storyNote(fromGame ? `New story from the game on the board (${filmSaved.moves.length} moves). Write it in the editor, then Save .pgn to keep it.`
+    : 'New story. Write it in the editor, then Save .pgn to keep it.');
+}
+
 async function loadPgnFile(file) {
   let text = await file.text();
   // a .pgn can hold many games; film the first one
@@ -3301,7 +3343,7 @@ function applyStoryText(text) {
     story = parseStory(text);
     const meta = storyMeta(story.headers);
     story.headers.FilmHeader = meta.header; story.headers.FilmFile = meta.file;
-    if (!compileStory(story, film.vo).plies) throw storyError('no moves found', text.length);
+    if (!compileStory(story, film.vo).beats.length) throw storyError('nothing to film yet: add a {caption} or some moves', text.length);
   } catch (e) {
     edStatus(`Line ${lineAt(text, e.pos ?? text.length)}: ${e.message}. The preview keeps the last working version.`, true, e.pos ?? null);
     markDirty();
@@ -3623,6 +3665,7 @@ drop.addEventListener('drop', (e) => {
 });
 $('fStory').addEventListener('change', (e) => switchStory(e.target.value));
 $('fLoad').onclick = () => $('fPgnInput').click();
+$('fNew').onclick = newStory;
 $('fPgnInput').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) loadPgnFile(f); e.target.value = ''; });
 $('film').querySelector('.film-stage').appendChild(compCanvas);
 
