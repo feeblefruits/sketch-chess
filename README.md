@@ -47,7 +47,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 
 ## Film studio
 
-The **Film** button turns an annotated game into a narrated, auto-directed vertical video (1080×1920, 60 fps MP4). It ships with three stories: **The Opera Game** (Morphy, Paris 1858), **The Game of the Century** (Byrne – Fischer, New York 1956) and the endgame of **Flohr vs Vidmar, Nottingham 1936**.
+The **Film** button turns an annotated game into a narrated, auto-directed vertical video (1080×1920, 60 fps MP4). It ships with four stories: **The Opera Game** (Morphy, Paris 1858), **The Game of the Century** (Byrne – Fischer, New York 1956), the endgame of **Flohr vs Vidmar, Nottingham 1936**, and **How chess notation works**, a 90-second explainer of squares, piece letters, captures, castling, check and mate, told through Légal's mate.
 
 - **＋ New** starts a story and opens it in the editor: the game you've played on the board, with an intro and a closing caption to fill in, or a short starter that explains the format if you haven't played one. It starts unsaved, so use **Save .pgn** to keep it.
 - **Pick a story** from the dropdown, or **Load PGN…** (or drop a `.pgn` on the panel) to film any game. Plain games from Lichess or chessgames.com work as they are; add `{comments}` and tags to narrate and direct them. A file with several games films the first one, and loading the same file again replaces it, so you can edit a story in a text editor and reload. Loaded files last for the session; the app doesn't store them.
@@ -76,7 +76,7 @@ A story is a PGN file (optionally with `[Evals "0.20,0.35,#-3,…"]`, one engine
 | `[%cam preset squares…]` | Camera shot: `overview`, `top`, `frame`, `closeup`, `low`, `orbit`, `follow` (tracks the pieces on those squares), `profile` (looks along a line of squares). `auto` hands the camera back to the director mid-beat. Add `b` to shoot from Black's side. `top` shots switch to the diagram view (inked symbols); add `3d` to keep the 3D pieces, or `diagram` to use symbols in any shot. `[%cam view x y z distance phi theta]` holds an exact view (what **Use this view** writes). Without a camera tag, the director frames the beat's moves and drops to a low angle for checks. |
 | `[%cal Gd2d4,Rb6d4]` / `[%csl Rd5]` | Pencil arrows / circles that draw themselves on (G graphite, R red, B blue, Y highlighter) |
 | `[%zone Bd4]`, `[%trail Ga7a8]`, `[%cross c5]`, `[%tick e4]` | Hatched square, back-and-forth trail, scribbled-out square, tick |
-| `[%label d5 "isolated"]` | Handwritten label pinned to a square |
+| `[%label d5 "isolated"]` | Handwritten label pinned to a square (add `above` to write it straight over the piece, e.g. `[%label e1 "K" above]`) |
 | `[%clear]` / `[%clear c4,f7]` | Take down all the marks (or the ones on those squares) as the move before it lands |
 | `[%think c1]` | The piece hesitates (lifts and wobbles) before the next move |
 | `( variation )` | Played as a see-through "ghost" line, then crossed out (or ticked with `!`) and rewound |

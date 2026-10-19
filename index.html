@@ -795,6 +795,43 @@
   Checkmate, by a rook, two bishops and a knight. The thirteen-year-old's win soon became known as "The Game of the Century". [%hold 2] }
 0-1
 </script>
+<script type="text/x-chess-story" id="chess-notation">
+[Event "How chess notation works"]
+[White "White"]
+[Black "Black"]
+[Result "1-0"]
+[FilmHeader "How chess notation works"]
+[FilmFile "chess-notation"]
+
+{ [%title "Chess notation"] [%cam view 0.00 -0.10 0.20 24.00 0.050 0.000 diagram] [%label a1 "a1"] [%label h8 "h8"] [%csl Re4] [%label e4 "e4"]
+  Chess notation writes down a whole game in a few letters. It starts with the squares: every square has a name. [%hold 2] }
+
+{ [%cam view 0.00 -0.10 0.20 24.00 0.050 0.000 diagram] [%cal Ba1h1,Ra1a8]
+  Files are the columns, a to h. Ranks are the rows, 1 to 8. Say the file first, then the rank. [%hold 1] }
+
+{ [%cam closeup a1 b1 c1 d1 e1 3d] [%label a1 "R" above] [%label b1 "N" above] [%label c1 "B" above] [%label d1 "Q" above] [%label e1 "K" above]
+  Pieces get a capital letter: K king, Q queen, R rook, B bishop, and N for the knight. Pawns get no letter. [%hold 2] }
+
+{ [%cam frame e2 e4 e7 e5 g1 f3]
+  A move is the piece's letter, then the square it lands on. A pawn move is just the square. }
+1. e4 e5 2. Nf3 { [%label f3 "Nf3"] }
+
+{ [%cam overview] [%speed 0.75]
+  Moves are numbered. 3. Bc4 is White's third move. Black's reply is written 3... Bg4. }
+2... d6 3. Bc4 Bg4 4. Nc3 g6
+
+{ [%title "Capture, castle"] [%cam closeup e5 f3 g1 h1] [%speed 0.75]
+  An x means a capture: Nxe5 is a knight taking on e5. Castling is written O-O, or O-O-O on the queen's side. }
+5. Nxe5 (5. O-O!) Bxd1 { [%label d1 "Bxd1"] }
+
+{ [%title "Check and mate"] [%cam low e7 f7 d5 c4]
+  6. Bxf7+ takes on f7 with check: a plus sign means check. After 6... Ke7, 7. Nd5# is checkmate, written with a hash sign. [%hold 1] }
+6. Bxf7+ Ke7 7. Nd5# { [%label d5 "#"] }
+
+{ [%cam overview] [%recap "Squares: file, then rank|Pieces: K Q R B N|x capture, + check, # mate|O-O castles, e8=Q promotes"]
+  That's all you need to read, and write down, any game. [%hold 6] }
+1-0
+</script>
 
 <script type="importmap">
 {
@@ -2988,7 +3025,8 @@ function compileStory(story, vo = {}) {
             for (const sq of args.split(/[\s,]+/).filter((x) => SQ_RE.test(x))) { pushAnnot({ kind: tag.k, color: tag.k === 'tick' ? 'blue' : 'red', sq }, mt + drew * 0.35); drew++; }
           } else if (tag.k === 'label') {
             const sq = args.split(/\s+/)[0];
-            A.push({ t: mt + drew * 0.35, type: 'label', sq, text: quoted(args.slice(2)) }); squares.add(sq); drew++;
+            // [%label e1 "K" above]: written straight over the piece instead of off to the side
+            A.push({ t: mt + drew * 0.35, type: 'label', sq, text: quoted(args.slice(2)), above: /"\s*above\s*$/.test(args) }); squares.add(sq); drew++;
           } else if (tag.k === 'hold') t += parseFloat(args) || 1;
           else if (tag.k === 'think') {
             const sq = args.trim(); A.push({ t, type: 'think', sq, dur: 1.1 }); t += 1.1;
@@ -3418,7 +3456,7 @@ function composite() {
     if (a <= 0) continue;
     const { x, z } = sqToXZ(l.sq);
     const [sx, sy] = toScreen(x, 0.95, z);
-    const lx = clamp(sx + (sx < FILM_W / 2 ? 150 : -150), 140, FILM_W - 140), ly = clamp(sy - 120, 360, FILM_H - 520);
+    const lx = l.above ? sx : clamp(sx + (sx < FILM_W / 2 ? 150 : -150), 140, FILM_W - 140), ly = l.above ? sy - 70 : clamp(sy - 120, 360, FILM_H - 520);
     cctx.save(); cctx.globalAlpha = a;
     withSeed(l.seed + boil, () => roughLine(cctx, sx, sy - 10, lx, ly + 34, 4, 3, 'rgba(194,54,31,0.9)', 1));
     cctx.font = '700 60px Caveat, cursive'; cctx.lineWidth = 12; cctx.strokeStyle = 'rgba(250,247,239,0.95)';
@@ -3627,7 +3665,7 @@ function applyAction(a, b, live) {
   switch (a.type) {
     case 'cam': setShot(a.spec, nowMs, a.blend ?? 1.5, a.base); break;
     case 'annot': addAnnot(a.item, nowS); break;
-    case 'label': film.labels.push({ sq: a.sq, text: a.text, t0: nowS, tOut: null, seed: 500 + film.labels.length }); break;
+    case 'label': film.labels.push({ sq: a.sq, text: a.text, above: a.above, t0: nowS, tOut: null, seed: 500 + film.labels.length }); break;
     case 'think': { const o = pieces.find((p) => p.square === a.sq); if (o) o.think = { t0: nowMs, dur: a.dur }; break; }
     case 'clear': { // all marks, or only the ones touching the given squares
       const hit = (sq) => !a.squares.length || a.squares.includes(sq);
