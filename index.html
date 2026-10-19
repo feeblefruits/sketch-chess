@@ -6,7 +6,7 @@
 <title>Sketch Chess</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
 <style>
   :root {
     --paper: #f8f5ec;
@@ -92,20 +92,97 @@
   .btn:disabled { opacity: .35; cursor: default; transform: none; background-image: none; }
   .btn.on { background: var(--hl); }
   .btn.off { color: var(--graphite); text-decoration: line-through; text-decoration-thickness: 2px; }
+  /* the round "more" button grows the toolbar upwards into a drawer of the other buttons */
+  #toolbar { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 0; }
+  .tb-main { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .btn.round { border-radius: 50%; width: 46px; height: 46px; padding: 0; justify-content: center; flex: none; }
+  .btn.round .lbl { display: none; }
+  .btn.round::before, .btn.round::after { border-radius: 50% 46% 52% 48%; }
+  .btn.round svg { transition: transform .3s; }
+  .btn.round.open { background: var(--hl); }
+  /* the eye in the corner hides everything but the board (and brings it back) */
+  #bZen { position: fixed; z-index: 11; right: 14px; bottom: 16px; width: 38px; height: 38px; opacity: .55; transition: opacity .2s; }
+  #bZen:hover, #bZen:focus-visible, body.zen #bZen { opacity: 1; }
+  #bZen svg { width: 18px; height: 18px; }
+  #bZen .eye-off, body.zen #bZen .eye-on { display: none; }
+  body.zen #bZen .eye-off { display: block; }
+  .ui { transition: opacity .35s ease; }
+  body.zen .ui:not(#sbLabels) { opacity: 0 !important; pointer-events: none !important; }
+  body.filming #bZen { display: none; }
+  .btn.round.open svg { transform: rotate(90deg); }
+  #moreMenu { overflow: hidden; transition: height .32s cubic-bezier(.3, .8, .3, 1); }
+  #moreMenu[hidden] { display: none; }
+  .more-inner { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding-bottom: 8px; }
   .btn:focus-visible { outline: 2px dashed var(--blue); outline-offset: 3px; }
 
-  #log { top: 14px; right: 14px; width: 190px; padding: 8px 14px 10px; max-height: calc(100vh - 120px); display: flex; flex-direction: column; }
-  #log header { display: flex; justify-content: space-between; align-items: baseline; cursor: pointer; }
-  #log h2 { font-family: 'Caveat', cursive; font-size: 27px; margin: 0; font-weight: 700; }
-  #log header span { font-size: 15px; color: var(--ink-soft); }
-  #log ol { margin: 4px 0 0; padding: 0 0 0 28px; overflow-y: auto; font-size: 18px; line-height: 1.3; flex: 1;
-    background-image: repeating-linear-gradient(transparent 0 22.4px, rgba(43, 86, 184, .18) 22.4px 23.4px); }
+  /* the moves notebook: a small spiral pocket notebook; its cover flips up over the spiral to open it */
+  #log { top: 14px; right: 14px; width: 184px; perspective: 700px; }
+  .nb-spiral { position: absolute; z-index: 3; left: 8px; right: 8px; top: -7px; height: 16px; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='16'%3E%3Cpath d='M7.5 2.5 C3 2.5 3 13.5 7.5 13.5' fill='none' stroke='%231b1a17' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='9.5' cy='13' r='1.6' fill='%231b1a17'/%3E%3C/svg%3E") space no-repeat; background-size: 15px 16px; background-repeat: space no-repeat; }
+  .nb-page, .nb-cover { border: 2px solid var(--ink); border-radius: 4px 9px 10px 6px; box-shadow: 3px 4px 0 rgba(27, 26, 23, .13); }
+  .nb-page { position: relative; height: 104px; overflow: hidden; padding: 12px 10px 6px 0; transition: height .42s cubic-bezier(.3, .8, .3, 1);
+    background: linear-gradient(to right, transparent 30px, rgba(194, 54, 31, .45) 30px 31.5px, transparent 31.5px), var(--paper-2); }
+  #log.open .nb-page { height: auto; }
+  .nb-cover { position: absolute; z-index: 2; left: 0; right: 0; top: 0; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; cursor: pointer; font: inherit; color: var(--ink); transform-origin: 50% 0; transition: transform .45s cubic-bezier(.4, .1, .3, 1), opacity .45s;
+    background: repeating-linear-gradient(-55deg, rgba(27, 26, 23, .07) 0 1.5px, transparent 1.5px 7px), #efe6d2; }
+  #log.open .nb-cover { transform: rotateX(-118deg); opacity: 0; pointer-events: none; }
+  .nb-label { font: 700 26px 'Caveat', cursive; padding: 0 14px; border: 1.5px solid var(--ink); border-radius: 3px 7px 4px 6px; background: #fbf9f3; }
+  .nb-count { font-size: 14px; color: var(--ink-soft); }
+  .nb-tab { position: absolute; z-index: 2; right: 10px; bottom: 8px; pointer-events: none; transform: rotate(-8deg);
+    font: 700 22px/1 'Caveat', cursive; color: var(--tab, var(--red)); text-shadow: 0 0 3px #efe6d2; }
+  #log.open .nb-tab { display: none; }
+  .nb-head { display: flex; justify-content: space-between; align-items: center; padding-left: 38px; }
+  .nb-title { font: 700 25px 'Caveat', cursive; line-height: 1; }
+  .nb-close { border: none; background: none; cursor: pointer; color: var(--ink-soft); padding: 2px; }
+  .nb-close svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  #log .etools { margin: 6px 0 2px 38px; }
+  #log .etool { font-size: 12px; padding: 2px 0 1px; }
+  #log .etool svg { width: 16px; height: 16px; }
+  #log ol { margin: 4px 0 0; padding: 0 0 0 38px; font-size: 18px; line-height: 26px; min-height: 260px;
+    background-image: repeating-linear-gradient(transparent 0 25px, rgba(43, 86, 184, .2) 25px 26px); }
+  #log ol.turn { animation: pageTurn .3s ease-out; }
+  @keyframes pageTurn { from { opacity: 0; transform: translateX(10px) rotate(.6deg); } }
   #log li { padding-left: 2px; }
   #log li::marker { color: var(--graphite); font-size: 15px; }
-  #log li b { font-weight: 400; display: inline-block; min-width: 58px; }
+  #log li b { font-weight: 400; display: inline-block; min-width: 56px; }
+  .cls { font-family: 'Caveat', cursive; font-weight: 700; font-style: normal; margin-left: 3px; }
+  .etools { display: flex; gap: 6px; margin: 6px 0 2px; }
+  .etool { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0 2px; cursor: pointer;
+    font: 14px 'Patrick Hand', cursive; color: var(--ink-soft); background: none; border: 1.5px solid var(--graphite); border-radius: 10px 3px 9px 4px; }
+  .etool svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: url(#rough-sm); }
+  .etool:hover { background-image: repeating-linear-gradient(-55deg, rgba(27, 26, 23, .1) 0 1.5px, transparent 1.5px 6px); }
+  .etool.on { background: var(--hl); color: var(--ink); border-color: var(--ink); }
+  .etool:disabled { opacity: .35; cursor: default; background-image: none; }
+  .etool:focus-visible { outline: 2px dashed var(--blue); outline-offset: 2px; }
+  body.thinking .etool.on svg { animation: thinking 1.2s ease-in-out infinite; }
+  @keyframes thinking { 50% { opacity: .4; } }
+  #evalBar { left: 16px; top: 196px; height: min(46vh, calc(100vh - var(--toolbar-h, 56px) - 250px)); width: 22px; border: 2px solid var(--ink);
+    border-radius: 8px 4px 9px 5px; background: #fbf9f3; overflow: visible; }
+  #evalBar[hidden] { display: none; }
+  #evalFill { position: absolute; left: 0; right: 0; top: 0; height: 50%; border-radius: 6px 2px 0 0; transition: height .7s cubic-bezier(.3, 1.3, .5, 1);
+    background: repeating-linear-gradient(-55deg, var(--ink) 0 2.6px, rgba(27, 26, 23, .62) 2.6px 5px); }
+  #evalBar.flip #evalFill { top: auto; bottom: 0; border-radius: 0 0 2px 6px; }
+  #evalBar::after { content: ""; position: absolute; left: -5px; right: -5px; top: 50%; border-top: 1.5px dashed rgba(194, 54, 31, .7); }
+  #evalNum { position: absolute; top: -26px; left: 50%; transform: translateX(-50%); font: 17px 'Patrick Hand', cursive; white-space: nowrap; color: var(--ink); }
+  #evalBar.waiting #evalNum { opacity: .5; }
+  body.evalbar #alert { left: 54px; }
+  body.filming #evalBar { display: none; }
+  #alert { top: 150px; left: 14px; max-width: 280px; padding: 8px 14px 10px; display: flex; flex-direction: column; gap: 2px; transform: rotate(-1deg); }
+  #alert[hidden] { display: none; }
+  #alert b { font: 700 30px 'Caveat', cursive; line-height: 1; }
+  #alert b { color: var(--alert, var(--ink)); }
+  #alert span { font-size: 16px; color: var(--ink-soft); }
+  body.filming #alert { display: none; }
   #log li b.last { background: linear-gradient(transparent 35%, var(--hl) 35% 88%, transparent 88%); }
-  #log .empty { color: var(--graphite); font-size: 16px; padding: 4px 0; list-style: none; margin-left: -28px; }
-  #log.collapsed ol { display: none; }
+  #log .empty { color: var(--graphite); font-size: 16px; list-style: none; margin-left: -6px; }
+  .nb-foot { display: flex; align-items: center; justify-content: center; gap: 10px; height: 24px; margin-left: 30px; font-size: 14px; color: var(--ink-soft); }
+  .nb-turn { font: 22px/1 'Caveat', cursive; border: none; background: none; cursor: pointer; color: var(--ink); padding: 0 4px; }
+  .nb-turn:disabled { visibility: hidden; }
+  /* the next-page button is the page's dog-eared corner */
+  .nb-corner { position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; padding: 0;
+    background: linear-gradient(135deg, var(--paper-2) 49%, var(--ink) 49% 53%, #e9e1cf 53%); border-radius: 0 0 8px 0; }
+  .nb-corner:hover { width: 32px; height: 32px; }
 
   #hint { bottom: 76px; left: 50%; transform: translateX(-50%); font-size: 16px; color: var(--ink-soft);
     pointer-events: none; transition: opacity 1s; text-align: center; width: max-content; max-width: 92vw; }
@@ -129,6 +206,7 @@
   #loading { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
     background: var(--paper); font-family: 'Caveat', cursive; font-size: 40px; transition: opacity .5s; flex-direction: column; gap: 8px; }
   #loading.done { opacity: 0; pointer-events: none; }
+  #loading:not(.fonts) #loadText { visibility: hidden; } /* shown once its handwriting font has arrived, so it never swaps fonts */
   #loading svg { width: 120px; height: 30px; }
   #loading svg path { stroke-dasharray: 260; stroke-dashoffset: 260; animation: draw 1.2s ease-in-out infinite alternate; }
   #loading small { font-family: 'Patrick Hand', cursive; font-size: 17px; color: var(--ink-soft); max-width: 80vw; text-align: center; }
@@ -301,14 +379,24 @@
 
   @media (max-width: 760px) {
     #card { padding: 6px 12px 8px; min-width: 0; top: 10px; left: 10px; }
+    #alert { top: 112px; left: 10px; max-width: 220px; }
+    #evalBar { left: 8px; top: 140px; width: 15px; }
+    #evalNum { font-size: 14px; }
+    body.evalbar #alert { left: 32px; }
     #card h1 { font-size: 26px; }
     #turn { font-size: 18px; }
     #turn svg { width: 24px; height: 24px; }
     #banner { top: auto; bottom: 128px; font-size: 36px; }
-    #log { top: 10px; right: 10px; width: 150px; max-height: 45vh; }
+    #log { top: 12px; right: 10px; width: 156px; }
+    .nb-page, .nb-cover { height: 86px; }
+    .nb-label { font-size: 22px; }
+    #log ol { font-size: 16px; min-height: 0; padding-left: 34px; }
+    #log li b { min-width: 46px; }
+    #log .etools, .nb-head { margin-left: 30px; padding-left: 0; }
     .btn { font-size: 16px; padding: 7px 10px; }
     .btn .lbl { display: none; }
     #hint { bottom: 70px; font-size: 14px; }
+
   }
 </style>
 </head>
@@ -336,14 +424,34 @@
   <div id="moveNo">Move 1</div>
 </div>
 
+<div id="evalBar" class="ui" hidden aria-label="Evaluation bar"><i id="evalFill"></i><b id="evalNum">+0.0</b></div>
+<div id="alert" class="ui sketch" role="status" aria-live="polite" hidden><b id="alertTitle"></b><span id="alertText"></span></div>
 <div id="banner" class="ui sketch" role="status" aria-live="polite">
   <span id="bannerText"></span><small id="bannerSub"></small>
   <svg viewBox="0 0 300 12" preserveAspectRatio="none"><path d="M4 7 C 60 2, 120 11, 180 5 S 270 4, 296 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
 </div>
 
-<section id="log" class="ui sketch">
-  <header id="logHead" title="Show / hide moves"><h2>Moves</h2><span id="logToggle">hide</span></header>
+<section id="log" class="ui" aria-label="Moves notebook">
+  <i class="nb-spiral" aria-hidden="true"></i>
+  <button id="nbCover" class="nb-cover" aria-expanded="true" aria-controls="nbPage" title="Open the moves notebook (N)">
+    <span class="nb-label">Moves</span><span id="nbCount" class="nb-count">no moves yet</span>
+  </button>
+  <span id="nbTab" class="nb-tab" hidden></span>
+  <div id="nbPage" class="nb-page">
+  <div class="nb-head"><span class="nb-title">Moves</span><button id="nbClose" class="nb-close" title="Close the notebook (N)" aria-label="Close the notebook">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button></div>
+  <div class="etools" role="group" aria-label="Engine">
+    <button class="etool" id="eBar" aria-pressed="false" title="Evaluation bar: how the game stands, from Stockfish (E)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2.5" width="8" height="19" rx="2"/><path d="M8.5 12.5h7v8.5h-7z" fill="currentColor" stroke="none"/><path d="M5 12h14" stroke-dasharray="2 2"/></svg><span>Eval</span></button>
+    <button class="etool" id="eLabels" aria-pressed="true" title="Label moves: brilliant !! and blunder ??, with a note when one is played (L)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12.5 11.5 4.5h8v8l-8 8z"/><path d="M14.5 8.5v3.2M14.5 14v.1" stroke-width="2.4"/></svg><span>Labels</span></button>
+    <button class="etool" id="eAll" aria-pressed="false" title="All labels: best, great, good, inaccuracy, mistake and miss too, not only brilliant and blunder">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><circle cx="5" cy="6" r="1.8"/><circle cx="5" cy="12" r="1.8"/><circle cx="5" cy="18" r="1.8"/></svg><span>All</span></button>
+  </div>
   <ol id="logList"></ol>
+  <div class="nb-foot"><button id="nbPrev" class="nb-turn" title="Previous page" aria-label="Previous page">‹</button><span id="nbPageNo"></span>
+    <button id="nbNext" class="nb-turn nb-corner" title="Next page" aria-label="Next page"></button></div>
+  </div>
 </section>
 
 <div id="hint" class="ui">Drag a piece (or click it, then a square) &middot; drag empty space to orbit &middot; right-drag to pan &middot; scroll to zoom</div>
@@ -383,10 +491,12 @@
   </div>
 </section>
 
+<button id="bZen" class="btn sketch round small" aria-pressed="false" title="Hide everything but the board (H)" aria-label="Hide everything but the board">
+  <svg class="eye-on" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+  <svg class="eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 3.9M6.6 6.6C3.8 8.4 2 12 2 12s4 7 10 7a9.8 9.8 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+</button>
 <nav id="toolbar" class="ui">
-  <button class="btn sketch" id="bNew" title="New game"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20.5 3.5v5h-5"/></svg><span class="lbl">New game</span></button>
-  <button class="btn sketch" id="bUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lbl">Undo</span></button>
-  <button class="btn sketch" id="bRedo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg><span class="lbl">Redo</span></button>
+  <div id="moreMenu" role="group" aria-label="More" hidden><div class="more-inner">
   <button class="btn sketch" id="bFlip" title="Flip board (F)"><svg viewBox="0 0 24 24"><path d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></svg><span class="lbl">Flip</span></button>
   <button class="btn sketch" id="bDiagram" aria-pressed="false" title="Diagram view: the board from above with inked symbols (D)"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span class="lbl">Diagram</span></button>
   <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
@@ -395,6 +505,13 @@
   <button class="btn sketch" id="bBoard" aria-pressed="false" title="Storyboard: add captions, marks and camera views to this game, then open it as a film (S)"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 15h7M13 18.5h5"/></svg><span class="lbl">Storyboard</span></button>
   <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
   <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
+  </div></div>
+  <div class="tb-main">
+  <button class="btn sketch" id="bNew" title="New game"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20.5 3.5v5h-5"/></svg><span class="lbl">New game</span></button>
+  <button class="btn sketch" id="bUndo" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lbl">Undo</span></button>
+  <button class="btn sketch" id="bRedo" title="Redo (Ctrl+Y)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg><span class="lbl">Redo</span></button>
+  <button class="btn sketch round" id="bMore" aria-expanded="false" aria-controls="moreMenu" title="More: view, look, storyboard, film and sound (M)"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg><span class="lbl">More</span></button>
+  </div>
 </nav>
 
 <div id="promo" class="modal" aria-hidden="true">
@@ -489,6 +606,13 @@
   <svg viewBox="0 0 120 30"><path d="M4 18 C 20 6, 34 26, 50 14 S 80 6, 96 16 S 112 20, 116 12" fill="none" stroke="#1b1a17" stroke-width="3" stroke-linecap="round"/></svg>
   <small id="loadErr"></small>
 </div>
+<script>
+  (function () { // reveal the loading text in its own font (or after a moment, whatever arrives)
+    var show = function () { document.getElementById('loading').classList.add('fonts'); };
+    setTimeout(show, 1500);
+    if (document.fonts && document.fonts.load) document.fonts.load('40px Caveat', 'Sharpening').then(show, show); else show();
+  })();
+</script>
 
 <!-- Film stories: annotated PGN. A comment with text opens a "beat" (caption + voiceover line);
      [%tags] direct the camera and the pencil annotations. See the film section in the script for the full list. -->
@@ -1255,6 +1379,17 @@ function drawShadowTexture(seed, rect = false) {
 }
 
 // marker sprites — paper halo underneath so they read on top of scribbles
+// brilliant / blunder: a pencil ring round the square and the symbol scrawled in its corner
+function classMarker(ctx, S, rgb, sym) { // drawn at 1.6× a square: the ring hugs the square's edge
+  const c = S / 2;
+  roughCircle(ctx, c, c, S * 0.33, 1.25, S * 0.06, 'rgba(250,247,239,0.75)', 0.06);
+  roughCircle(ctx, c, c, S * 0.33, 1.25, S * 0.03, `rgba(${rgb},0.95)`, 0.07);
+  ctx.save(); ctx.translate(S * 0.8, S * 0.8); ctx.rotate(-0.15); // the near corner, so the piece doesn't hide it
+  ctx.font = `700 ${Math.round(S * 0.3)}px Caveat, cursive`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = S * 0.06; ctx.strokeStyle = 'rgba(250,247,239,0.95)'; ctx.strokeText(sym, 0, 0);
+  ctx.fillStyle = `rgba(${rgb},1)`; ctx.fillText(sym, rj(S * 0.01), rj(S * 0.01));
+  ctx.restore();
+}
 const MARKER_KINDS = {
   dot(ctx, S) {
     const c = S / 2;
@@ -1458,8 +1593,12 @@ function putMarker(kind, sq) {
     scene.add(m); markerPool.push(m);
   }
   const { x, z } = sqToXZ(sq);
-  const [y, ro] = MARKER_LAYER[kind];
+  const [y, ro] = MARKER_LAYER[kind], big = kind in CLS;
   m.position.set(x, y, z); m.renderOrder = ro;
+  // brilliant / blunder marks reach past the square, so a piece standing on it can't hide them,
+  // and turn (in quarter turns) so the symbol reads upright from the camera's side of the board
+  m.scale.set(big ? 1.6 : 1, 1, big ? 1.6 : 1);
+  m.rotation.y = big ? Math.round(Math.atan2(camera.position.x, camera.position.z) / (Math.PI / 2)) * (Math.PI / 2) : 0;
   m.userData.kind = kind; m.material.map = markerTex[kind][((boilStep % VARIANTS) + VARIANTS) % VARIANTS]; m.material.needsUpdate = true;
   m.visible = true;
 }
@@ -1788,6 +1927,8 @@ function refreshMarkers() {
   const hist = chess.history({ verbose: true });
   const last = filmMode.active ? filmMode.lastMove : hist[hist.length - 1]; // films load positions directly
   if (last) { putMarker('last', last.from); putMarker('last', last.to); }
+  const cls = filmMode.active ? filmMode.lastClass : liveClassOf(hist.length);
+  if (cls) putMarker(cls.kind, cls.sq);
   if (chess.inCheck()) {
     for (const row of chess.board()) for (const c of row) if (c && c.type === 'k' && c.color === chess.turn()) putMarker('check', c.square);
   }
@@ -1832,6 +1973,7 @@ function commit(m) {
   const next = redoStack[redoStack.length - 1];
   if (next && next.from === res.from && next.to === res.to && (next.promotion || null) === (res.promotion || null)) redoStack.pop(); // same as the next move in the line
   else { if (redoStack.length) sbPruneAfter(chess.history().length - 1); redoStack = []; }
+  live.pending = chess.history().length;
   deselect();
   sync();
   updateUI();
@@ -1850,6 +1992,7 @@ function redo() {
   const m = redoStack.pop();
   if (!m) return;
   try { chess.move(m); } catch (e) { redoStack = []; }
+  live.pending = chess.history().length;
   deselect(); sync(); updateUI();
 }
 function newGame() {
@@ -1903,20 +2046,37 @@ function updateUI() {
   }
   renderLog();
   refreshMarkers();
-  if (sb.on) { renderStoryboard(); sbRefreshMarks(); sbShowFilmCamera(); renderSbCam(); }
+  if (sb.on) { renderStoryboard(); sbShowFilmCamera(); renderSbCam(); }
+  sbRefreshMarks();
+  liveUpdate();
 }
 
-function renderLog() {
+const NB_ROWS = 10; // full moves on a notebook page
+function renderLog(turned = false) {
   const h = chess.history();
-  const ol = $('logList');
-  if (!h.length) { ol.innerHTML = '<li class="empty">No moves yet — White starts.</li>'; return; }
+  const ol = $('logList'), full = Math.ceil(h.length / 2), pages = Math.max(1, Math.ceil(full / NB_ROWS));
+  // the cover: how far the game has got, and a tab for the latest labelled move
+  $('nbCount').textContent = h.length ? `${full} move${full === 1 ? '' : 's'}` : 'no moves yet';
+  let tab = null;
+  for (let k = h.length; k > 0 && !tab; k--) if (live.cls[k]) tab = live.cls[k];
+  $('nbTab').hidden = !tab;
+  if (tab) { $('nbTab').textContent = CLS[tab].sym; $('nbTab').style.setProperty('--tab', CLS[tab].color); $('nbTab').title = `Latest label: ${CLS[tab].name}`; }
+  // which page: the latest, unless you've turned to another one
+  if (!turned) notebook.page = null;
+  const pg = clamp(notebook.page ?? pages - 1, 0, pages - 1);
+  notebook.shown = pg;
+  $('nbPrev').disabled = pg === 0; $('nbNext').disabled = pg >= pages - 1;
+  $('nbPageNo').textContent = pages > 1 ? `p. ${pg + 1} of ${pages}` : '';
+  if (turned) { ol.classList.remove('turn'); void ol.offsetWidth; ol.classList.add('turn'); }
+  if (!h.length) { ol.innerHTML = '<li class="empty">No moves yet. White starts.</li>'; return; }
+  ol.start = pg * NB_ROWS + 1;
   let html = '';
-  for (let i = 0; i < h.length; i += 2) {
+  for (let i = pg * NB_ROWS * 2; i < Math.min(h.length, (pg + 1) * NB_ROWS * 2); i += 2) {
     const cls = (k) => (k === h.length - 1 ? ' class="last"' : '');
-    html += `<li><b${cls(i)}>${h[i]}</b>${h[i + 1] ? `<b${cls(i + 1)}>${h[i + 1]}</b>` : ''}</li>`;
+    const tip = (k) => { const t = liveTitle(k); return t ? ` title="${t}"` : ''; };
+    html += `<li><b${cls(i)}${tip(i + 1)}>${h[i]}${liveMark(i + 1)}</b>${h[i + 1] ? `<b${cls(i + 1)}${tip(i + 2)}>${h[i + 1]}${liveMark(i + 2)}</b>` : ''}</li>`;
   }
   ol.innerHTML = html;
-  ol.scrollTop = ol.scrollHeight;
 }
 
 function showModal(el) { el.classList.add('show'); el.setAttribute('aria-hidden', 'false'); }
@@ -2139,9 +2299,46 @@ function cancelDrag() {
  * ------------------------------------------------------------------ */
 let wiggle = true;
 $('bNew').onclick = newGame;
+// hide everything but the board, and bring it back
+function setZen(on) {
+  document.body.classList.toggle('zen', on);
+  $('bZen').setAttribute('aria-pressed', String(on));
+  $('bZen').title = on ? 'Show the title, moves and toolbar again (H)' : 'Hide everything but the board (H)';
+  $('bZen').setAttribute('aria-label', $('bZen').title.replace(/ \(H\)$/, ''));
+  if (on && !$('moreMenu').hidden) setMenu(false);
+  try { localStorage.setItem('sketchChess.zen', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
+}
+$('bZen').onclick = () => setZen(!document.body.classList.contains('zen'));
+try { if (localStorage.getItem('sketchChess.zen') === '1') setZen(true); } catch (e) { /* storage may be blocked */ }
+// The round button grows the toolbar upwards into a drawer of the other buttons (and the hint, the eval bar
+// and the storyboard panel move up with it). It stays open while you use it; the round button or Esc closes it.
+let menuAnim = 0;
+function setMenu(open) {
+  const m = $('moreMenu');
+  if (open === !m.hidden && !m.classList.contains('closing')) return;
+  clearTimeout(menuAnim);
+  $('bMore').classList.toggle('open', open); $('bMore').setAttribute('aria-expanded', String(open));
+  if (open) {
+    m.classList.remove('closing'); m.hidden = false;
+    m.style.height = '0px'; void m.offsetHeight;
+    m.style.height = m.scrollHeight + 'px';
+    menuAnim = setTimeout(() => { m.style.height = ''; }, 340);
+  } else {
+    m.style.height = m.offsetHeight + 'px'; void m.offsetHeight;
+    m.classList.add('closing'); m.style.height = '0px';
+    menuAnim = setTimeout(() => { m.hidden = true; m.classList.remove('closing'); m.style.height = ''; }, 340);
+  }
+}
+$('bMore').onclick = () => setMenu($('moreMenu').hidden || $('moreMenu').classList.contains('closing'));
+// everything that sits on top of the toolbar follows its height as it grows and shrinks
+new ResizeObserver(() => {
+  const h = $('toolbar').offsetHeight;
+  document.documentElement.style.setProperty('--toolbar-h', h + 'px');
+  $('hint').style.bottom = h + 26 + 'px';
+}).observe($('toolbar'));
 $('bUndo').onclick = undo;
 $('bRedo').onclick = redo;
-$('bFlip').onclick = () => { viewSide = viewSide === 'w' ? 'b' : 'w'; userMovedCamera = false; setView(viewSide, true); };
+$('bFlip').onclick = () => { viewSide = viewSide === 'w' ? 'b' : 'w'; userMovedCamera = false; setView(viewSide, true); updateEvalBar(); };
 $('bView').onclick = () => { userMovedCamera = false; setView(viewSide, true); };
 $('bDiagram').onclick = () => setDiagram(!(sb.on ? diagram.mix > 0.5 : diagram.on));
 // Colour look: swaps the palette for the board, pieces, page, titles, diagram symbols and promotion thumbnails
@@ -2165,8 +2362,30 @@ $('bWiggle').onclick = () => { wiggle = !wiggle; $('bWiggle').classList.toggle('
 $('bSound').onclick = () => { soundOn = !soundOn; $('bSound').classList.toggle('off', !soundOn); };
 $('overNew').onclick = newGame;
 $('overLook').onclick = () => hideModal(overEl);
-$('logHead').onclick = () => { const l = $('log'); l.classList.toggle('collapsed'); $('logToggle').textContent = l.classList.contains('collapsed') ? 'show' : 'hide'; };
-if (innerWidth < 760) $('logHead').onclick();
+// the moves notebook: the cover flips up over the spiral and the page unfolds below it (and back)
+let nbAnim = 0;
+function setNotebook(open, animate = true) {
+  const log = $('log'), page = $('nbPage'), closedH = $('nbCover').offsetHeight || 104;
+  clearTimeout(nbAnim);
+  $('nbCover').setAttribute('aria-expanded', String(open));
+  try { localStorage.setItem('sketchChess.notebook', open ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
+  if (!animate) { log.classList.toggle('open', open); page.style.height = ''; return; }
+  if (open) {
+    page.style.height = closedH + 'px'; log.classList.add('open'); void page.offsetHeight;
+    page.style.height = page.scrollHeight + 'px';
+    nbAnim = setTimeout(() => { page.style.height = ''; }, 440);
+  } else {
+    page.style.height = page.offsetHeight + 'px'; void page.offsetHeight;
+    log.classList.remove('open'); page.style.height = closedH + 'px';
+    nbAnim = setTimeout(() => { page.style.height = ''; }, 440);
+  }
+}
+$('nbCover').onclick = () => setNotebook(true);
+$('nbClose').onclick = () => setNotebook(false);
+const notebook = { page: null }; // null: follow the latest move
+$('nbPrev').onclick = () => { notebook.page = Math.max(0, notebook.shown - 1); renderLog(true); };
+$('nbNext').onclick = () => { notebook.page = notebook.shown + 1; renderLog(true); };
+setNotebook((() => { try { const v = localStorage.getItem('sketchChess.notebook'); return v ? v === '1' : innerWidth >= 760; } catch (e) { return innerWidth >= 760; } })(), false);
 
 addEventListener('keydown', (e) => {
   const mod = e.ctrlKey || e.metaKey;
@@ -2183,6 +2402,8 @@ addEventListener('keydown', (e) => {
   }
   const typing = ['TEXTAREA', 'SELECT'].includes(e.target.tagName) || (e.target.tagName === 'INPUT' && e.target.type !== 'range');
   if (typing) { if (e.key === 'Escape') e.target.blur(); return; } // storyboard captions and labels
+  if (e.key === 'Escape' && !$('moreMenu').hidden && !$('moreMenu').classList.contains('closing')) { setMenu(false); $('bMore').focus(); return; }
+  if (!mod && e.key.toLowerCase() === 'm') { $('bMore').onclick(); return; }
   if (e.key === 'Escape' && sb.on && (sb.arrowFrom || sb.tool)) { if (sb.arrowFrom) sb.arrowFrom = null; else sb.tool = null; refreshSbTools(); return; }
   if (sb.on && !mod && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); gotoPly(curPly() + (e.key === 'ArrowLeft' ? -1 : 1)); return; }
   if (sb.on && !mod && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); sbDeleteFrom(curPly()); return; }
@@ -2194,6 +2415,10 @@ addEventListener('keydown', (e) => {
   else if (!mod && e.key.toLowerCase() === 'c') $('bView').onclick();
   else if (!mod && e.key.toLowerCase() === 'd') setDiagram(!(sb.on ? diagram.mix > 0.5 : diagram.on));
   else if (!mod && e.key.toLowerCase() === 'k') setColour(palette !== PALETTES.colour);
+  else if (!mod && e.key.toLowerCase() === 'e') setEvalBar(!evalBar.on);
+  else if (!mod && e.key.toLowerCase() === 'n') setNotebook(!$('log').classList.contains('open'));
+  else if (!mod && e.key.toLowerCase() === 'h') setZen(!document.body.classList.contains('zen'));
+  else if (!mod && e.key.toLowerCase() === 'l') setLabels(labels.mode === 'off' ? 'highlights' : 'off');
 });
 
 /* ------------------------------------------------------------------ *
@@ -2230,7 +2455,8 @@ function frame(rafNow) {
   updateWorld(dt, rafNow);
   if (sb.anim) sbStepAnim(performance.now());
   updateGameCamera(rafNow);
-  if (sb.on) { updateAnnots(performance.now() / 1000); placeSbLabels(); }
+  if (sb.on || annotMesh.visible) updateAnnots(performance.now() / 1000);
+  if (sb.on) placeSbLabels();
   renderer.render(scene, camera);
 }
 
@@ -2530,11 +2756,126 @@ function kingSquare(game, color) {
   return null;
 }
 
+// Move labels, judged from engine evaluations the way chess sites do. An evaluation becomes a winning chance
+// (the logistic curve chess sites use, from White's side) and a move is judged by how much of the mover's
+// winning chance it gives away: excellent up to 2%, good up to 5%, inaccuracy up to 10%, mistake up to 20%,
+// blunder beyond that. On top of those:
+// · best: the engine's own move (or, without it, a move that gives nothing away)
+// · brilliant: (almost) nothing given away while sacrificing material, a piece left to be taken or the
+//   material balance dropping by two or more after the reply; not when already completely winning
+//   (unless it forces mate) or worse off afterwards
+// · great: the only good move, when the engine's second choice is 20% worse (needs a second-best evaluation)
+// · miss: after the opponent's mistake or blunder, a move that gives 10% or more back instead of punishing it
+// A quick engine's verdict can swing for a move in the middle of a tactic. When the reply was the engine's own
+// best move (or, without that, when the move gave check), a drop only counts if it still stands after the reply.
+// The author's own symbols win: !! ?? set the label, ! makes it great (or brilliant), ?! and ? set inaccuracy
+// and mistake.
+const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+const winChance = (v) => (v === Infinity ? 1 : v === -Infinity ? 0 : 1 / (1 + Math.exp(-0.368208 * v)));
+function materialOf(fen) { // White minus Black, in pawns
+  let s = 0;
+  for (const ch of fen.split(' ')[0]) { const v = PIECE_VALUE[ch.toLowerCase()]; if (v) s += ch === ch.toLowerCase() ? -v : v; }
+  return s;
+}
+// What the mover stands to lose on sq if the opponent takes there with their cheapest piece (and the mover takes back)
+function hangingValue(fen, sq, color) {
+  const g = new Chess(); g.load(fen, { skipValidation: true });
+  const piece = g.get(sq);
+  if (!piece || piece.color !== color || piece.type === 'p' || piece.type === 'k') return 0;
+  const caps = g.moves({ verbose: true }).filter((m) => m.to === sq);
+  if (!caps.length) return 0;
+  const cap = caps.reduce((a, m) => (PIECE_VALUE[m.piece] < PIECE_VALUE[a.piece] ? m : a));
+  g.move(cap);
+  const back = g.moves({ verbose: true }).some((m) => m.to === sq);
+  return PIECE_VALUE[piece.type] - (back ? PIECE_VALUE[cap.piece] : 0);
+}
+const uciOf = (m) => m.from + m.to + (m.promotion || '');
+const LOSS_BANDS = [[0.02, 'excellent'], [0.05, 'good'], [0.1, 'inaccuracy'], [0.2, 'mistake'], [Infinity, 'blunder']];
+// moves[i] = { color, from, to, promotion, captured, check, nag } for ply i + 1; fens[i] / evals[i] = the position
+// after i plies (evals in pawns from White's side, ±Infinity for a forced mate); eng.best[i] = the engine's move
+// there (uci), eng.second[i] = the evaluation of its second choice
+// A quick engine scores positions a little better for whichever side is to move. Measured over the game
+// (how far each evaluation sits from the average of its neighbours, with the side to move), that wobble
+// is taken out before moves are judged, so every move isn't an inaccuracy.
+function steadyEvals(evals, fens) {
+  const fin = (v) => v != null && Number.isFinite(v), r = [];
+  for (let i = 1; i < evals.length - 1; i++) {
+    if (!fin(evals[i - 1]) || !fin(evals[i]) || !fin(evals[i + 1]) || !fens[i]) continue;
+    const s = fens[i].split(' ')[1] === 'w' ? 1 : -1;
+    r.push(s * (evals[i] - (evals[i - 1] + evals[i + 1]) / 2));
+  }
+  if (r.length < 4) return { evals, bias: 0 };
+  r.sort((a, b) => a - b);
+  const bias = clamp(r[r.length >> 1] / 2, 0, 0.35);
+  return { evals: evals.map((v, i) => (fin(v) && fens[i] ? v - (fens[i].split(' ')[1] === 'w' ? bias : -bias) : v)), bias };
+}
+// info (optional) receives, per move, the mover's winning chances before and after it (after the wobble is taken out)
+function classifyMoves(moves, fens, rawEvals, eng = {}, info = null) {
+  const best = eng.best || [], second = eng.second || [], out = [], losses = [];
+  const { evals, bias } = steadyEvals(rawEvals, fens);
+  moves.forEach((mv, i) => {
+    const nag = mv.nag || '', e0 = evals[i], e1 = evals[i + 1];
+    out[i] = null;
+    if (nag === '!!' || nag === '??') { out[i] = nag === '!!' ? 'brilliant' : 'blunder'; return; }
+    if (nag === '?!' || nag === '?') { out[i] = nag === '?' ? 'mistake' : 'inaccuracy'; return; }
+    if (e0 == null || e1 == null) { if (nag === '!') out[i] = 'great'; return; }
+    const g = new Chess(); g.load(fens[i], { skipValidation: true });
+    if (g.moves().length === 1) return; // forced: nothing to judge
+    const sign = mv.color === 'w' ? 1 : -1, wc = (v) => (sign > 0 ? winChance(v) : 1 - winChance(v));
+    const before = wc(e0), after = wc(e1), reply = moves[i + 1];
+    const noisy = best[i + 1] ? !!reply && uciOf(reply) === best[i + 1] : !!mv.check;
+    const settled = noisy && evals[i + 2] != null ? Math.max(after, wc(evals[i + 2])) : after;
+    const loss = Math.max(0, before - settled);
+    losses[i] = loss;
+    if (info) info[i] = { before, after: settled, color: mv.color };
+    // brilliant: a sound sacrifice
+    if (before - after <= 0.05 && after >= 0.5 && !(before > 0.97 && !(after === 1 && Math.abs(e1) === Infinity))) {
+      const bal = (k) => (fens[k] ? materialOf(fens[k]) * sign : null), b0 = bal(i);
+      const lineSac = bal(i + 2) != null && bal(i + 2) <= b0 - 2 && (bal(i + 3) == null || bal(i + 3) <= b0 - 1);
+      const staticSac = !!mv.to && hangingValue(fens[i + 1], mv.to, mv.color) - (PIECE_VALUE[mv.captured] || 0) >= 2;
+      if (lineSac || staticSac) { out[i] = 'brilliant'; return; }
+    }
+    const isBest = best[i] ? uciOf(mv) === best[i] : loss <= 0.003;
+    // great: the only good move
+    const v2 = second[i] != null && Number.isFinite(second[i]) && fens[i] ? second[i] - (fens[i].split(' ')[1] === 'w' ? bias : -bias) : second[i];
+    if ((isBest || loss <= 0.01) && v2 != null && before < 0.95 && before - wc(v2) >= 0.2) { out[i] = 'great'; return; }
+    if (nag === '!') { out[i] = loss > 0.1 ? null : 'great'; return; }
+    // miss: the opponent's mistake not punished
+    const prev = out[i - 1];
+    if (loss >= 0.1 && loss <= 0.3 && (prev === 'mistake' || prev === 'blunder' || prev === 'miss')) { out[i] = 'miss'; return; }
+    if (isBest) { out[i] = 'best'; return; }
+    out[i] = LOSS_BANDS.find(([max]) => loss <= max)[1];
+  });
+  return out;
+}
+const CLS = {
+  brilliant: { sym: '!!', name: 'Brilliant', rgb: '23,143,134', word: 'BRILLIANT!!' },
+  great: { sym: '!', name: 'Great', rgb: '43,108,176' },
+  best: { sym: '★', name: 'Best', rgb: '86,134,44' },
+  excellent: { sym: '✓', name: 'Excellent', rgb: '106,150,60' },
+  good: { sym: '✓', name: 'Good', rgb: '128,134,116' },
+  inaccuracy: { sym: '?!', name: 'Inaccuracy', rgb: '205,150,20' },
+  mistake: { sym: '?', name: 'Mistake', rgb: '224,118,31' },
+  miss: { sym: '✗', name: 'Miss', rgb: '190,60,120' },
+  blunder: { sym: '??', name: 'Blunder', rgb: '194,54,31', word: 'BLUNDER??' },
+};
+for (const [k, c] of Object.entries(CLS)) {
+  c.color = `rgb(${c.rgb})`;
+  MARKER_KINDS[k] = (ctx, S) => classMarker(ctx, S, c.rgb, c.sym);
+  MARKER_LAYER[k] = [0.011, 5];
+}
+// Which labels show, in the game and in films: none, the highlights (brilliant and blunder) or all of them
+const HIGHLIGHTS = new Set(['brilliant', 'blunder']), WAVE_DOTS = new Set(['brilliant', 'great', 'miss', 'mistake', 'blunder']);
+const labels = { mode: (() => {
+  try { return localStorage.getItem('sketchChess.labels') || (localStorage.getItem('sketchChess.alerts') === '0' ? 'off' : 'highlights'); } catch (e) { return 'highlights'; }
+})() };
+const shownClass = (c) => (c && (labels.mode === 'all' || (labels.mode === 'highlights' && HIGHLIGHTS.has(c))) ? c : null);
+
 function compileStory(story, vo = {}) {
   const g = new Chess();
   if (story.headers.FEN) { try { g.load(story.headers.FEN); } catch (e) { g.load(story.headers.FEN, { skipValidation: true }); } }
   const startFen = g.fen(), fens = [startFen], freeMoves = [];
-  const beats = [];
+  const beats = [], mainMoves = [];
   let beat = null, ply = 0;
   const openBeat = (caption, tags, open = null) => {
     beat = { idx: beats.length, id: 'vo-' + String(beats.length + 1).padStart(2, '0'), caption, title: null, fen: g.fen(),
@@ -2581,10 +2922,25 @@ function compileStory(story, vo = {}) {
       ply++; fens.push(g.fen());
       const ticker = tickerText(before, mv.san, n.nag);
       beat.lastTicker = ticker;
-      beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
-        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), start: n.start, end: n.end, ply, fenAfter: g.fen() });
+      mainMoves.push(beat.items[beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
+        vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), start: n.start, end: n.end, ply, fenAfter: g.fen() }) - 1]);
     }
   }
+  // brilliant and blunder moves, from the evaluations (or the author's !! and ??)
+  classifyMoves(mainMoves.map((it) => ({ color: it.mv.color, from: it.mv.from, to: it.mv.to, promotion: it.mv.promotion, captured: it.mv.captured, check: /[+#]/.test(it.mv.san), nag: it.nag })),
+    fens, evals, { second: parseEvals(story.headers.Evals2) })
+    .forEach((c, i) => {
+      c = shownClass(c);
+      if (!c) return;
+      const it = mainMoves[i];
+      it.cls = c;
+      if (!it.nag) it.ticker = tickerText(it.before, it.mv.san, CLS[c].sym); // the move name carries the symbol too
+    });
+  beats.forEach((b, i) => {
+    if (i && beats[i - 1].lastTicker) b.ticker = beats[i - 1].lastTicker;
+    const last = b.items.filter((it) => it.kind === 'move').pop();
+    b.lastTicker = last ? last.ticker : null;
+  });
   // a [%preview ply|end] beat shows a later position of the game; the next beat sweeps the pieces back
   const later = { fens: [], tickers: [] };
   { const gp = new Chess(); gp.load(startFen, { skipValidation: true });
@@ -2663,7 +3019,7 @@ function compileStory(story, vo = {}) {
         A.push({ t: gt + 1.7, type: 'ghostEnd', gid });
         t = gt + 2.4;
       }
-      const mv = it.mv, strong = /!/.test(it.nag) && !b.timelapse;
+      const mv = it.mv, strong = (/!/.test(it.nag) || it.cls === 'brilliant') && !b.timelapse;
       let slot = slot0 * (strong ? 1.35 : 1) + (mv.captured && !b.timelapse ? 0.25 : 0);
       const moveDur = b.timelapse ? slot * 0.8 : Math.min(0.9, slot * 0.5) * (strong ? 1.45 : 1);
       if (it.check && !b.timelapse && !camCueBeforeMove && !b.steady) {
@@ -2671,7 +3027,12 @@ function compileStory(story, vo = {}) {
         A.push({ t: t + slot + 0.4, type: 'cam', spec: { preset: 'restore' }, blend: 1.3 });
         slot += 0.6;
       }
-      A.push({ t, type: 'move', san: mv.san, from: mv.from, to: mv.to, fenAfter: it.fenAfter, moveDur, ticker: it.ticker, srcStart: it.start, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply });
+      A.push({ t, type: 'move', san: mv.san, from: mv.from, to: mv.to, fenAfter: it.fenAfter, moveDur, ticker: it.ticker, srcStart: it.start, srcEnd: it.end, cueAfter: it.cueAfter || null, cueT: t + moveDur + 0.15, ply: it.ply, cls: it.cls || null });
+      if (it.cls) { // the pencil mark lands with the piece; a brilliant move or a blunder also gets a stamp and a moment
+        const big = HIGHLIGHTS.has(it.cls) && !b.timelapse;
+        A.push({ t: t + moveDur + 0.05, type: 'stamp', kind: it.cls, sq: mv.to, big });
+        if (big) slot += 1.0;
+      }
       landT = t + moveDur + 0.15;
       A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
       if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
@@ -2690,7 +3051,9 @@ function compileStory(story, vo = {}) {
     b.squares = [...squares];
     start += b.dur;
   }
-  return { headers: story.headers, beats, duration: start, plies: ply, finalFen: g.fen(), fens, freeMoves, evalPts: evalTimeline(beats, evals, ply, start) };
+  const highlights = [];
+  for (const b of beats) for (const a of b.actions) if (a.type === 'stamp' && WAVE_DOTS.has(a.kind)) highlights.push({ t: b.start + a.t, kind: a.kind });
+  return { headers: story.headers, highlights, beats, duration: start, plies: ply, finalFen: g.fen(), fens, freeMoves, evalPts: evalTimeline(beats, evals, ply, start) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -3008,7 +3371,11 @@ function composite() {
   const b = film.comp.beats[film.beatIdx];
   cctx.globalCompositeOperation = 'source-over'; cctx.globalAlpha = 1;
   cctx.fillStyle = palette.page; cctx.fillRect(0, 0, FILM_W, FILM_H);
-  cctx.drawImage(renderer.domElement, 0, 0, FILM_W, FILM_H);
+  const jolt = stampJolt(nowS);
+  if (jolt) {
+    cctx.save(); cctx.translate(jolt.cx + jolt.dx, jolt.cy + jolt.dy); cctx.scale(jolt.s, jolt.s); cctx.translate(-jolt.cx, -jolt.cy);
+    cctx.drawImage(renderer.domElement, 0, 0, FILM_W, FILM_H); cctx.restore();
+  } else cctx.drawImage(renderer.domElement, 0, 0, FILM_W, FILM_H);
   cctx.globalCompositeOperation = 'multiply'; cctx.fillStyle = grainPattern; cctx.fillRect(0, 0, FILM_W, FILM_H);
   const vg = cctx.createRadialGradient(FILM_W / 2, FILM_H * 0.45, FILM_H * 0.3, FILM_W / 2, FILM_H * 0.45, FILM_H * 0.75);
   vg.addColorStop(0, 'rgba(255,255,255,1)'); vg.addColorStop(1, 'rgba(205,192,168,1)');
@@ -3081,6 +3448,8 @@ function composite() {
     cctx.restore();
   }
 
+  if (film.stamp) drawStamp(nowS);
+
   // caption card
   if (b && b.caption) {
     const k = clamp((nowS - b.start - 0.15) / 0.45, 0, 1);
@@ -3098,6 +3467,54 @@ function composite() {
   const prog = clamp(nowS / film.comp.duration, 0, 1);
   if (film.comp.evalPts) drawEvalWave(prog, boil);
   else withSeed(5 + boil, () => roughLine(cctx, 70, FILM_H - 64, 70 + (FILM_W - 140) * prog, FILM_H - 64, 4, 1.5, 'rgba(27,26,23,0.55)', 1));
+}
+
+// A blunder knocks the camera: a quick punch-in on the square and a shake that dies away (no randomness, so exports repeat)
+function stampJolt(nowS) {
+  const st = film.stamp;
+  if (!st || st.kind !== 'blunder') return null;
+  const k = nowS - st.t0;
+  if (k < 0 || k > 0.8) return null;
+  const { x, z } = sqToXZ(st.sq), [cx, cy] = toScreen(x, 0.3, z), decay = Math.exp(-k * 7);
+  return { cx, cy, s: 1 + 0.07 * Math.sin(Math.min(1, k / 0.8) * Math.PI), dx: Math.sin(k * 70) * 16 * decay, dy: Math.cos(k * 55) * 10 * decay };
+}
+let stampSheet = null;
+// The stamp: BRILLIANT!! bursts out of a comic starburst; BLUNDER?? slams down like a red rubber stamp
+function drawStamp(nowS) {
+  const st = film.stamp, k = nowS - st.t0, life = 2.1;
+  if (k < 0 || k > life) { if (k > life) film.stamp = null; return; }
+  const c = CLS[st.kind], { x, z } = sqToXZ(st.sq), [sx, sy] = toScreen(x, 1.0, z);
+  // near the piece, but clear of the title and move name above and the caption below
+  const px = clamp(sx, 330, FILM_W - 330), py = clamp(sy - 210, st.kind === 'brilliant' ? 560 : 500, FILM_H - 660);
+  const pop = k < 0.12 ? 1.6 - (k / 0.12) * 0.75 : k < 0.24 ? 0.85 + ((k - 0.12) / 0.12) * 0.15 : 1;
+  const alpha = k > life - 0.35 ? (life - k) / 0.35 : 1;
+  cctx.save(); cctx.globalAlpha = alpha; cctx.translate(px, py); cctx.scale(pop, pop);
+  cctx.textAlign = 'center'; cctx.textBaseline = 'middle'; cctx.lineJoin = 'round';
+  withSeed(st.t0 * 1000 | 0, () => {
+    if (st.kind === 'brilliant') {
+      cctx.rotate(-0.07);
+      cctx.beginPath();
+      for (let i = 0; i < 26; i++) { const a = i / 26 * TAU, r = (i % 2 ? 150 : 250) * (0.9 + rand() * 0.2); cctx.lineTo(Math.cos(a) * r * 1.25, Math.sin(a) * r * 0.62); }
+      cctx.closePath(); cctx.fillStyle = 'rgba(27,26,23,0.9)'; cctx.save(); cctx.translate(9, 11); cctx.fill(); cctx.restore();
+      cctx.fillStyle = '#f9d65c'; cctx.fill(); cctx.lineWidth = 6; cctx.strokeStyle = INK_HEX; cctx.stroke();
+      cctx.font = '104px Bangers, Impact, sans-serif'; cctx.lineWidth = 12; cctx.strokeStyle = INK_HEX; cctx.strokeText(c.word, 0, 6);
+      cctx.fillStyle = c.color; cctx.fillText(c.word, 0, 6);
+    } else {
+      // the stamp is inked on its own sheet, so its worn patches show the film through rather than punching holes in it
+      const sc = stampSheet || (stampSheet = makeCanvas(900, 300)), x = sc.getContext('2d');
+      x.clearRect(0, 0, 900, 300); x.save(); x.translate(450, 150);
+      x.font = '118px Bangers, Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      const w = Math.min(860, x.measureText(c.word).width + 90), h = 170;
+      x.strokeStyle = `rgba(${c.rgb},0.92)`; x.lineWidth = 10; x.strokeRect(-w / 2, -h / 2, w, h);
+      x.lineWidth = 4; x.strokeRect(-w / 2 + 16, -h / 2 + 16, w - 32, h - 32);
+      x.fillStyle = `rgba(${c.rgb},0.95)`; x.fillText(c.word, 0, 8);
+      x.globalCompositeOperation = 'destination-out'; // worn ink
+      for (let i = 0; i < 70; i++) { x.beginPath(); x.arc(rj(w / 2), rj(h / 2), 2 + rand() * 6, 0, TAU); x.fill(); }
+      x.restore();
+      cctx.rotate(-0.11); cctx.drawImage(sc, -450, -150);
+    }
+  });
+  cctx.restore();
 }
 
 // The film's timeline as a sideways evaluation bar: the curve rises when White is better and dips when Black is;
@@ -3151,6 +3568,12 @@ function drawEvalWave(prog, boil) {
       for (let i = from + 1; i <= to; i++) cctx.lineTo(X(i), Y(i) + rj(0.8));
       cctx.stroke();
     }
+    // brilliant and blunder moves: coloured pencil dots on the curve, faint until the film reaches them
+    for (const hl of film.comp.highlights || []) {
+      const i = Math.round(hl.t / film.comp.duration * n), c = CLS[hl.kind], done = i <= head;
+      cctx.fillStyle = `rgba(${c.rgb},${done ? 1 : 0.35})`; cctx.strokeStyle = `rgba(27,26,23,${done ? 0.9 : 0.3})`; cctx.lineWidth = 2.5;
+      cctx.beginPath(); cctx.arc(X(i), Y(i), 9, 0, TAU); cctx.fill(); cctx.stroke();
+    }
     // playhead in red pencil
     const hy = mid - S[Math.min(n, head)] * amp;
     roughLine(cctx, hx, top - 6, hx, bottom + 6, 2.6, 1, 'rgba(194,54,31,0.85)', 1);
@@ -3188,7 +3611,7 @@ function beginBeat(i, live) {
   const b = film.comp.beats[i];
   film.beatIdx = i; film.actIdx = 0;
   if (chess.fen() !== b.fen) { // e.g. after a [%preview]: sweep the pieces back to where this beat starts
-    chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null; filmMode.moveDur = 1.2; sync(); refreshMarkers();
+    chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null; filmMode.lastClass = null; filmMode.moveDur = 1.2; sync(); refreshMarkers();
     film.ticker = b.ticker ? { text: b.ticker, t0: film.t } : null;
   }
   const nowS = film.t, nowMs = clock.now();
@@ -3216,11 +3639,15 @@ function applyAction(a, b, live) {
     case 'move': {
       filmMode.moveDur = a.moveDur;
       chess.load(a.fenAfter, { skipValidation: true }); // the compiled position: legal and free moves alike
-      filmMode.lastMove = { from: a.from, to: a.to };
+      filmMode.lastMove = { from: a.from, to: a.to }; filmMode.lastClass = null;
       sync(); refreshMarkers();
       film.ticker = { text: a.ticker, t0: nowS };
       break;
     }
+    case 'stamp':
+      filmMode.lastClass = { sq: a.sq, kind: a.kind }; refreshMarkers();
+      if (a.big) film.stamp = { kind: a.kind, sq: a.sq, t0: nowS };
+      break;
     case 'ghostStart': film.ghostSquares = new Map(); film.ghostGame = null; break;
     case 'ghostMove': {
       const mv = a.mv, gs = film.ghostSquares || (film.ghostSquares = new Map());
@@ -3282,7 +3709,7 @@ function seekFilm(t) {
   const b = beats[i];
   rand = mulberry32(777 + i);
   wiggleTime = b.start; boilStep = -1;
-  chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null;
+  chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null; filmMode.lastClass = null; film.stamp = null;
   for (const o of pieces) { o.think = null; o.wob = 0; }
   clearGhosts(true); clearPuffs();
   sync({ instant: true });
@@ -3644,7 +4071,11 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const okStatus = () => {
   const fm = film.comp.freeMoves || [], text = film.compiledText || '';
   const free = fm.length ? ` · ${plural(fm.length, 'free move')} (not legal chess, played as written): ${fm.slice(0, 4).map((x) => `${x.san} (line ${lineAt(text, x.pos)})`).join(', ')}${fm.length > 4 ? '…' : ''}` : '';
-  edStatus(`✓ ${plural(film.comp.plies, 'move')} · ${plural(film.comp.beats.length, 'beat')} · ${fmtTime(film.comp.duration)}${free}`, false, fm.length ? fm[0].pos : null);
+  const marked = (kind) => film.comp.beats.flatMap((b) => b.items.filter((it) => it.cls === kind)).map((it) => it.ticker.replace(/[!?]+$/, ''));
+  const br = marked('brilliant'), bl = marked('blunder');
+  const more = labels.mode === 'all' ? ['great', 'miss', 'mistake'].map((k) => [k, marked(k).length]).filter(([, n]) => n).map(([k, n]) => ` · ${n} ${k === 'miss' ? (n === 1 ? 'miss' : 'misses') : CLS[k].name.toLowerCase() + (n === 1 ? '' : 's')}`).join('') : '';
+  const hl = (br.length ? ` · !! ${br.join(', ')}` : '') + (bl.length ? ` · ?? ${bl.join(', ')}` : '') + more;
+  edStatus(`✓ ${plural(film.comp.plies, 'move')} · ${plural(film.comp.beats.length, 'beat')} · ${fmtTime(film.comp.duration)}${hl}${free}`, false, fm.length ? fm[0].pos : null);
 };
 function toolHint(msg, err = false) { const el = $('fToolHint'); el.textContent = msg; el.style.color = err ? 'var(--red)' : ''; }
 function markDirty() {
@@ -4055,10 +4486,10 @@ addEventListener('beforeunload', (e) => {
  * ------------------------------------------------------------------ */
 const ENGINE_URL = 'https://cdn.jsdelivr.net/npm/stockfish@10.0.2/src/stockfish.asm.js';
 let analysing = null;
-function writeEvalsHeader(list) {
-  const base = film.compiledText, line = `[Evals "${list}"]`;
+function writeEvalsHeader(list, name = 'Evals') {
+  const base = film.compiledText, line = `[${name} "${list}"]`;
   let start, end, insert = line;
-  const m = base.match(/^\[Evals\s+"[^"]*"\][ \t]*$/m);
+  const m = base.match(new RegExp(`^\\[${name}\\s+"[^"]*"\\][ \\t]*$`, 'm'));
   if (m) { start = m.index; end = m.index + m[0].length; }
   else { // right after the header block at the top
     let pos = 0, after = 0;
@@ -4080,27 +4511,30 @@ async function analyseStory() {
   let listener = null;
   worker.onmessage = (e) => listener && listener(String(e.data));
   worker.onerror = () => { job.err = "couldn't load the engine (are you online?)"; job.cancel = true; listener && listener('bestmove (none)'); };
+  // the engine's two best moves: the second one's score tells a "great" (only good) move from the rest
   const ask = (fen) => new Promise((res) => {
-    let last = null;
+    const last = {};
     // skip provisional 'lowerbound' / 'upperbound' scores; the last exact score at the final depth is the one
-    listener = (l) => { const mm = l.match(/ depth \d+ .*score (cp|mate) (-?\d+)(?! (?:lower|upper)bound)/); if (mm && !/bound/.test(l)) last = mm; if (l.startsWith('bestmove')) res(last); };
+    listener = (l) => { const mm = l.match(/ depth \d+ .*?multipv (\d+) .*?score (cp|mate) (-?\d+)/); if (mm && !/bound/.test(l)) last[mm[1]] = [null, mm[2], mm[3]]; if (l.startsWith('bestmove')) res(last[1] ? last : null); };
     worker.postMessage('position fen ' + fen); worker.postMessage('go depth 14');
   });
-  worker.postMessage('uci');
+  worker.postMessage('uci'); worker.postMessage('setoption name MultiPV value 2');
   $('fAnalyse').textContent = 'Stop analysis';
-  const vals = [];
+  const vals = [], vals2 = [];
+  const fmt = (r, sign) => (!r ? '' : r[1] === 'mate' ? '#' + +r[2] * sign : ((+r[2] * sign) / 100).toFixed(2));
   try {
     for (let i = 0; i < fens.length; i++) {
       if (job.cancel || film.storyId !== storyAtStart) throw new Error(job.err || 'stopped');
       storyNote(`Analysing with Stockfish… ${i + 1} / ${fens.length}`);
       const gi = new Chess(fens[i]);
-      if (gi.isCheckmate()) { vals.push(gi.turn() === 'w' ? '#-0' : '#0'); continue; }
-      if (gi.isDraw()) { vals.push('0.00'); continue; }
+      if (gi.isCheckmate()) { vals.push(gi.turn() === 'w' ? '#-0' : '#0'); vals2.push(''); continue; }
+      if (gi.isDraw()) { vals.push('0.00'); vals2.push(''); continue; }
       const res = await ask(fens[i]), sign = gi.turn() === 'w' ? 1 : -1; // engine scores are from the side to move
       if (job.cancel) throw new Error(job.err || 'stopped');
-      vals.push(!res ? '0.00' : res[1] === 'mate' ? '#' + +res[2] * sign : ((+res[2] * sign) / 100).toFixed(2));
+      vals.push(res ? fmt(res[1], sign) : '0.00'); vals2.push(res ? fmt(res[2], sign) : '');
     }
     writeEvalsHeader(vals.join(','));
+    writeEvalsHeader(vals2.join(','), 'Evals2');
     storyNote(`Analysed ${fens.length} positions; the timeline now shows the evaluation wave. Save the .pgn to keep it.`);
   } catch (e) {
     storyNote(e.message === 'stopped' ? 'Analysis stopped.' : 'Analysis failed: ' + e.message, e.message !== 'stopped');
@@ -4213,6 +4647,10 @@ function sbRefreshMarks(fresh = null) {
       annots.push({ ...it, seed: strHash(q + m.k + m.v) % 100000, t0: m === fresh ? nowS : nowS - 10, dur, tOut: null });
     }
   }
+  const hint = film.active ? null : liveHint();
+  if (hint) annots.push({ kind: 'arrow', color: 'blue', dashed: true, from: hint.from, to: hint.to, seed: 4242, t0: performance.now() / 1000 - (hint.fresh ? 0 : 10), dur: 0.6, tOut: null });
+  if (!film.active) annotMesh.visible = sb.on || !!hint;
+  if (hint) hint.fresh = false;
   annotDirty = true; updateAnnots(performance.now() / 1000);
   const box = $('sbLabels');
   box.innerHTML = '';
@@ -4392,6 +4830,7 @@ function renderStoryboard() {
       const nq = sb.notes.get(q);
       btn.className = 'sbmv' + extra + (q === p ? ' cur' : '') + (sbHasMarks(nq) ? ' has' : '');
       btn.textContent = label; btn.title = q ? `Go to the position after ${plyLabel(q, sans, true)}` : 'Go to the start';
+      if (q && !extra) { btn.dataset.ply = q; btn.insertAdjacentHTML('beforeend', liveMark(q)); }
       btn.onclick = () => gotoPly(q);
       if (extra) { mv.appendChild(btn); return; } // the beat's starting position isn't a move
       const wrap = document.createElement('span'), del = document.createElement('button');
@@ -4473,7 +4912,8 @@ function storyboardPGN() {
   const result = end.isCheckmate() ? (end.turn() === 'w' ? '0-1' : '1-0') : end.isDraw() ? '1/2-1/2' : '*';
   const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   const first = sb.notes.get(0), name = (first && sbClean(first.title)) || 'My storyboard';
-  let out = `[Event "${name}"]\n[Date "${date}"]\n[White "White"]\n[Black "Black"]\n[Result "${result}"]\n[FilmHeader "${name}"]\n[FilmFile "storyboard"]\n\n`;
+  const evals = liveEvalsHeader(), evals2 = liveEvalsHeader('second');
+  let out = `[Event "${name}"]\n[Date "${date}"]\n[White "White"]\n[Black "Black"]\n[Result "${result}"]\n[FilmHeader "${name}"]\n[FilmFile "storyboard"]\n${evals ? `[Evals "${evals}"]\n` : ''}${evals2 ? `[Evals2 "${evals2}"]\n` : ''}\n`;
   const c0 = first ? sbComment(first) : '';
   if (c0) out += c0 + '\n';
   let line = '', needNum = true;
@@ -4661,12 +5101,214 @@ $('sbClear').onclick = sbClearAll;
 addEventListener('beforeunload', (e) => { if (sb.dirty && sb.notes.size) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ------------------------------------------------------------------ *
+ *  Live labels and the evaluation bar: while you play, Stockfish (in a background worker) evaluates each
+ *  position of the game once, with its two best moves. The same rules the films use label the moves in the
+ *  moves list, the storyboard and on the board, and a note pops up when a notable move is played. After
+ *  undoing a blunder, mistake or miss, a dashed blue arrow shows the engine's move instead.
+ * ------------------------------------------------------------------ */
+const ALERTS = { highlights: new Set(['brilliant', 'blunder']), all: new Set(['brilliant', 'great', 'miss', 'mistake', 'blunder']) };
+const live = {
+  worker: null, failed: false, listener: null, cache: new Map(), queue: [], busy: false,
+  cls: [], to: [], pending: null, alertTimer: 0, alertPly: null, hintKey: null,
+};
+const evalBar = { on: (() => { try { return localStorage.getItem('sketchChess.evalbar') === '1'; } catch (e) { return false; } })() };
+const engineWanted = () => labels.mode !== 'off' || evalBar.on;
+function liveWorker() {
+  if (live.worker || live.failed) return live.worker;
+  try {
+    live.worker = new Worker(URL.createObjectURL(new Blob([`importScripts('${ENGINE_URL}');`], { type: 'application/javascript' })));
+  } catch (e) { live.failed = true; return null; }
+  live.worker.onmessage = (e) => live.listener && live.listener(String(e.data));
+  live.worker.onerror = () => {
+    live.failed = true; live.worker = null; live.queue = [];
+    if (live.listener) live.listener('bestmove (none)');
+    showAlert('note', 'No engine', "Stockfish couldn't be loaded (are you online?), so moves can't be labelled.");
+  };
+  live.worker.postMessage('uci');
+  live.worker.postMessage('setoption name MultiPV value 2');
+  return live.worker;
+}
+// One position: { v: evaluation in pawns from White's side (±Infinity for mate), mate: moves to mate (White's side),
+// best: the engine's move (uci), v2: the evaluation of its second choice }
+function liveAsk(fen) {
+  const g = new Chess(fen);
+  if (g.isCheckmate()) return Promise.resolve({ v: g.turn() === 'w' ? -Infinity : Infinity, mate: 0, best: null, v2: null, over: g.turn() === 'w' ? '0–1' : '1–0' });
+  if (g.isDraw()) return Promise.resolve({ v: 0, mate: null, best: null, v2: null, over: '½–½' });
+  const w = liveWorker();
+  if (!w) return Promise.resolve(null);
+  const sign = g.turn() === 'w' ? 1 : -1;
+  const value = (m) => (m[1] === 'mate' ? (+m[2] * sign > 0 ? Infinity : -Infinity) : (+m[2] * sign) / 100);
+  return new Promise((res) => {
+    const last = {};
+    live.listener = (l) => {
+      const mm = l.match(/ depth \d+ .*?multipv (\d+) .*?score (cp|mate) (-?\d+)/);
+      if (mm && !/bound/.test(l)) last[mm[1]] = [null, mm[2], mm[3]];
+      if (l.startsWith('bestmove')) {
+        const best = l.split(/\s+/)[1], a = last[1], b = last[2];
+        res(!a ? null : { v: value(a), mate: a[1] === 'mate' ? +a[2] * sign : null, best: /^[a-h][1-8][a-h][1-8]/.test(best) ? best : null, v2: b ? value(b) : null });
+      }
+    };
+    w.postMessage('position fen ' + fen); w.postMessage('go depth 13 movetime 1500');
+  });
+}
+async function livePump() {
+  if (live.busy) return;
+  live.busy = true; document.body.classList.add('thinking');
+  while (live.queue.length && engineWanted() && !live.failed) {
+    const fen = live.queue.shift();
+    if (live.cache.has(fen)) continue;
+    const r = await liveAsk(fen);
+    if (r) live.cache.set(fen, r);
+    liveUpdate();
+  }
+  live.busy = false; document.body.classList.remove('thinking');
+}
+// The whole line (moves played and the ones stepped back from), its positions and the engine's findings
+function liveLine() {
+  const g = new Chess(), fens = [g.fen()], moves = [];
+  const hist = chess.history({ verbose: true }).map((m) => ({ from: m.from, to: m.to, promotion: m.promotion }));
+  for (const m of hist.concat([...redoStack].reverse())) {
+    let mv;
+    try { mv = g.move(m); } catch (e) { break; }
+    moves.push({ color: mv.color, from: mv.from, to: mv.to, promotion: mv.promotion, captured: mv.captured, check: /[+#]/.test(mv.san), san: mv.san, nag: '' });
+    fens.push(g.fen());
+  }
+  const found = fens.map((f) => live.cache.get(f) || null);
+  return { fens, moves, evals: found.map((r) => (r ? r.v : null)), best: found.map((r) => (r ? r.best : null)), second: found.map((r) => (r ? r.v2 : null)) };
+}
+const pct = (x) => `${Math.round(x * 100)}%`;
+// called after every move, undo, redo and engine result
+function liveUpdate() {
+  if (film.active) return;
+  const { fens, moves, evals, best, second } = liveLine(), n = curPly();
+  if (engineWanted() && (moves.length || evalBar.on)) { // the engine only loads once there's something to look at
+    const want = [fens[n], fens[n - 1], ...fens].filter((f) => f && !live.cache.has(f) && !live.queue.includes(f));
+    live.queue.unshift(...new Set(want));
+    livePump();
+  }
+  const info = [], raw = labels.mode === 'off' ? [] : classifyMoves(moves, fens, evals, { best, second }, info);
+  live.raw = [null, ...raw]; live.info = [null, ...info];
+  const cls = [null, ...raw.map(shownClass)], key = cls.join(',') + '|' + info.map((f) => (f ? Math.round(f.after * 100) : '')).join(',');
+  const changed = key !== live.key;
+  live.cls = cls; live.key = key; live.to = [null, ...moves.map((m) => m.to)];
+  if (changed) { renderLog(); refreshMarkers(); updateSbMarks(); }
+  sbRefreshMarks();
+  updateEvalBar();
+  // a note for the move just played (or redone), once the engine has judged it
+  if (live.pending === n && n && evals[n - 1] != null && evals[n] != null) {
+    live.pending = null;
+    const c = cls[n];
+    if (c && ALERTS[labels.mode] && ALERTS[labels.mode].has(c)) {
+      const mv = moves[n - 1], side = mv.color === 'w' ? 'White' : 'Black', label = `${Math.ceil(n / 2)}${mv.color === 'w' ? '.' : '…'} ${mv.san}`;
+      const wc = (v) => (mv.color === 'w' ? winChance(v) : 1 - winChance(v)), fell = `${side}'s winning chances fell from ${pct(wc(evals[n - 1]))} to ${pct(wc(evals[n]))}`;
+      const text = {
+        brilliant: `${label}: a sacrifice, and still one of the best moves.`,
+        great: `${label}: the only good move here.`,
+        blunder: `${label}: ${fell}. Undo (Ctrl+Z) to see a better move.`,
+        mistake: `${label}: ${fell}. Undo (Ctrl+Z) to see a better move.`,
+        miss: `${label}: the chance to punish the last move slipped by. Undo (Ctrl+Z) to see it.`,
+      }[c];
+      showAlert(c, `${CLS[c].sym} ${CLS[c].name}`, text, n);
+    }
+  } else if (live.alertPly != null && n !== live.alertPly) hideAlert(); // the game has moved on (or back)
+}
+// what the engine made of a move, for its tooltip in the moves list
+function liveTitle(ply) {
+  const c = live.raw && live.raw[ply], f = live.info && live.info[ply];
+  if (!f) return labels.mode === 'off' ? '' : 'Not judged yet: Stockfish is still looking at this position';
+  const side = f.color === 'w' ? 'White' : 'Black';
+  const shown = c && !shownClass(c) ? ' (only brilliant and blunder are shown: switch on All to see every label)' : '';
+  return `${c ? CLS[c].name : 'Not labelled'}: ${side}'s winning chances ${pct(f.before)} → ${pct(f.after)}${shown}`;
+}
+function liveMark(ply) {
+  const c = live.cls[ply];
+  return c ? `<i class="cls" style="color:${CLS[c].color}" title="${CLS[c].name}">${CLS[c].sym}</i>` : '';
+}
+function liveClassOf(ply) {
+  const c = !film.active && live.cls[ply];
+  return c ? { kind: c, sq: live.to[ply] } : null;
+}
+// After undoing a blunder, mistake or miss: the engine's move in this position, as a dashed blue arrow
+function liveHint() {
+  const p = curPly();
+  if (!['blunder', 'mistake', 'miss'].includes(live.cls[p + 1]) || !redoStack.length) return null;
+  const r = live.cache.get(chess.fen());
+  if (!r || !r.best) return null;
+  const from = r.best.slice(0, 2), to = r.best.slice(2, 4);
+  if (live.hintKey !== chess.fen()) { live.hintKey = chess.fen(); return { from, to, fresh: true }; }
+  return { from, to };
+}
+function updateSbMarks() {
+  if (!sb.on) return;
+  document.querySelectorAll('#sbBeats .sbmv[data-ply]').forEach((b) => {
+    b.querySelectorAll('.cls').forEach((x) => x.remove());
+    b.insertAdjacentHTML('beforeend', liveMark(+b.dataset.ply));
+  });
+}
+// the line's evaluations as [Evals] / [Evals2] headers for the storyboard's story (blank where not analysed yet)
+function liveEvalsHeader(which = 'evals') {
+  const line = liveLine(), vals = which === 'second' ? line.second : line.evals;
+  if (!vals.some((v) => v != null)) return '';
+  return vals.map((v) => (v == null ? '' : v === Infinity ? '#1' : v === -Infinity ? '#-1' : v.toFixed(2))).join(',');
+}
+function showAlert(kind, title, text, ply = null) {
+  const el = $('alert');
+  el.className = 'ui sketch'; el.hidden = false;
+  el.style.setProperty('--alert', CLS[kind] ? CLS[kind].color : 'var(--ink)');
+  $('alertTitle').textContent = title; $('alertText').textContent = text;
+  live.alertPly = ply;
+  clearTimeout(live.alertTimer);
+  live.alertTimer = setTimeout(hideAlert, /blunder|mistake|miss/.test(kind) ? 9000 : 6000);
+}
+function hideAlert() { $('alert').hidden = true; live.alertPly = null; }
+// The evaluation bar: Black's share hatched in ink from Black's end, the number on top
+function updateEvalBar() {
+  const on = evalBar.on && !film.active, bar = $('evalBar');
+  bar.hidden = !on; document.body.classList.toggle('evalbar', on);
+  if (!on) return;
+  bar.classList.toggle('flip', viewSide === 'b');
+  const r = live.cache.get(chess.fen());
+  bar.classList.toggle('waiting', !r);
+  if (!r) return; // keep the last reading until this position is analysed
+  // the quick engine scores the side to move a little too well: take that out, as the move labels do
+  // (measured over the game once there are a few positions, otherwise this engine's usual amount)
+  const { fens, evals } = liveLine(), measured = steadyEvals(evals, fens).bias, wobble = measured || 0.3;
+  const v = Number.isFinite(r.v) ? r.v - (chess.turn() === 'w' ? wobble : -wobble) : r.v;
+  const share = v === Infinity ? 1 : v === -Infinity ? 0 : 1 / (1 + Math.exp(-0.75 * v)); // White's share, as on the film's wave
+  $('evalFill').style.height = `${(1 - share) * 100}%`;
+  $('evalNum').textContent = r.over || (r.mate != null ? `${r.mate > 0 ? '' : '−'}M${Math.abs(r.mate)}` : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}`);
+  const verdict = r.over ? 'game over' : Math.abs(v) < 0.5 ? 'about equal' : Math.abs(v) < 1.5 ? `${v > 0 ? 'White' : 'Black'} is slightly better`
+    : Number.isFinite(v) && Math.abs(v) < 3 ? `${v > 0 ? 'White' : 'Black'} is better` : `${v > 0 ? 'White' : 'Black'} is winning`;
+  bar.title = `Stockfish: ${$('evalNum').textContent} (${verdict})`;
+}
+function setLabels(mode) {
+  labels.mode = mode;
+  try { localStorage.setItem('sketchChess.labels', mode); } catch (e) { /* storage may be blocked */ }
+  $('eLabels').classList.toggle('on', mode !== 'off'); $('eLabels').setAttribute('aria-pressed', String(mode !== 'off'));
+  $('eAll').classList.toggle('on', mode === 'all'); $('eAll').setAttribute('aria-pressed', String(mode === 'all'));
+  $('eAll').disabled = mode === 'off';
+  if (mode === 'off') hideAlert();
+  live.cls = []; liveUpdate(); renderLog(); refreshMarkers(); updateSbMarks();
+}
+function setEvalBar(on) {
+  evalBar.on = on;
+  try { localStorage.setItem('sketchChess.evalbar', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
+  $('eBar').classList.toggle('on', on); $('eBar').setAttribute('aria-pressed', String(on));
+  liveUpdate();
+}
+$('eBar').onclick = () => setEvalBar(!evalBar.on);
+$('eLabels').onclick = () => setLabels(labels.mode === 'off' ? 'highlights' : 'off');
+$('eAll').onclick = () => setLabels(labels.mode === 'all' ? 'highlights' : 'all');
+$('alert').onclick = hideAlert;
+setLabels(labels.mode); setEvalBar(evalBar.on);
+
+/* ------------------------------------------------------------------ *
  *  Boot
  * ------------------------------------------------------------------ */
 async function boot() {
   try {
     await Promise.race([
-      Promise.all([document.fonts.load('700 80px Caveat'), document.fonts.load('20px "Patrick Hand"')]),
+      Promise.all([document.fonts.load('700 80px Caveat'), document.fonts.load('20px "Patrick Hand"'), document.fonts.load('40px Bangers')]),
       new Promise((r) => setTimeout(r, 2500)),
     ]);
   } catch (e) { /* fall back to cursive */ }

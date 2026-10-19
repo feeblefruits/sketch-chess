@@ -12,7 +12,8 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 - **Camera** — orbit, pan and zoom (mouse or touch), flip to Black's side, reset view.
 - **Colour** — switch between the pencil look and ink-and-wash colour: a green and cream board in a wooden frame, ivory and charcoal pieces, parchment page. Applies to the game, films and exports, and is remembered between visits.
 - **Diagram view** — look straight down at the board with the 3D pieces swapped for hand-inked diagram symbols (they crossfade). The symbols stay upright as you turn the board.
-- **UI** — turn indicator, check/mate/draw banners, move log, undo/redo, synthesized pencil sound effects.
+- **Move labels and evaluation bar** — the **Eval**, **Labels** and **All** buttons in the moves panel. While you play, Stockfish checks every position in the background (it loads from jsDelivr when first needed). **Eval** shows an evaluation bar beside the board (E). **Labels** (L) marks moves the way chess sites do, by how much of the player's winning chances a move gives away: by default only brilliant **!!** (a sacrifice that is still one of the best moves) and blunder **??** (more than 20% thrown away); with **All**, also great **!** (the only good move), best **★**, excellent and good **✓**, inaccuracy **?!**, mistake **?** and miss **✗** (the opponent's mistake not punished). Labels show in the moves list, the storyboard and as a pencil ring on the board, and a note pops up when one is played (or replayed after an undo). Undo a blunder, mistake or miss and a dashed blue arrow shows the engine's move instead. A quick engine scores positions slightly better for the side to move; that wobble is measured over the game and taken out before moves are judged.
+- **UI** — turn indicator, check/mate/draw banners, undo/redo, synthesized pencil sound effects. The moves are kept in a small spiral notebook in the corner: its cover shows how many moves have been played (and a tab for the latest labelled move), and flips up over the spiral to open a ruled page with the moves, ten to a page, with a dog-eared corner to turn pages. The toolbar holds New game, Undo and Redo; the round ⋯ button grows it upwards into a drawer with everything else (flip, diagram, view, colour, wiggle, storyboard, film, sound), which stays open until you close it.
 
 ## Controls
 
@@ -24,6 +25,11 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 | Flip board / reset camera | F / C |
 | Diagram view on / off | D |
 | Colour on / off | K |
+| Evaluation bar on / off | E |
+| Move labels on / off | L |
+| Moves notebook open / closed | N |
+| Toolbar drawer open / closed | M |
+| Hide / show everything but the board (also the eye in the bottom-right corner) | H |
 | Storyboard on / off | S |
 | Storyboard: previous / next move | ← / → |
 | Storyboard: delete the move just played (and any after it) | Delete / Backspace |
@@ -46,6 +52,7 @@ The **Film** button turns an annotated game into a narrated, auto-directed verti
 - **＋ New** starts a story and opens it in the editor: the game you've played on the board, with an intro and a closing caption to fill in, or a short starter that explains the format if you haven't played one. It starts unsaved, so use **Save .pgn** to keep it.
 - **Pick a story** from the dropdown, or **Load PGN…** (or drop a `.pgn` on the panel) to film any game. Plain games from Lichess or chessgames.com work as they are; add `{comments}` and tags to narrate and direct them. A file with several games films the first one, and loading the same file again replaces it, so you can edit a story in a text editor and reload. Loaded files last for the session; the app doesn't store them.
 - **Preview**: Play/Pause (Space), scrub, or click a beat (← / → jump between beats). What you preview is exactly what gets recorded.
+- **Move labels in films**: the same labels (and the same Labels / All setting) apply to films. A brilliant move bursts out in a comic **BRILLIANT!!** and a blunder gets a red **BLUNDER??** rubber stamp with a jolt of the camera; every shown label gets a pencil ring on the board and its symbol in the move name, and the notable ones a dot on the evaluation wave. They come from the story's engine evaluations: the built-in films have them, **Analyse** adds them (with the engine's second choice, as `[Evals2]`, which "great" moves need), and storyboards carry over what Stockfish worked out while you played. The editor's status line lists them.
 - **Export MP4** renders frame by frame on a virtual clock, so playback speed doesn't matter, and encodes H.264 + AAC in the browser with WebCodecs ([Mediabunny](https://mediabunny.dev)). Use a recent Chrome or Edge.
 - **Voiceover**: "Narration script" copies and downloads one line per beat (`vo-01`, `vo-02`, …). Record or generate a clip per line, name it to match (`vo-03.mp3`), and drop the clips on the panel. Each beat stretches to fit its clip, and the clips are mixed into the export.
 - **Subtitles .srt** downloads captions timed to the film.
@@ -74,6 +81,7 @@ A story is a PGN file (optionally with `[Evals "0.20,0.35,#-3,…"]`, one engine
 | `[%think c1]` | The piece hesitates (lifts and wobbles) before the next move |
 | `( variation )` | Played as a see-through "ghost" line, then crossed out (or ticked with `!`) and rewound |
 | `!` after a move | Slow motion |
+| `!!` `!` `?!` `?` `??` after a move | Sets the move's label (brilliant, great, inaccuracy, mistake, blunder) whatever the engine says |
 | `[%preview end]` / `[%preview 34]` | Open the beat on a later position of the game (the final position, or the position after that many half-moves), e.g. a title shot of the decisive moment; the next beat sweeps the pieces back |
 | `[%steady]` | Keep this beat's camera: no automatic cut to a low angle on checks |
 | `[%title "…"]`, `[%hold 2]`, `[%speed 1.7]`, `[%timelapse 0.3]`, `[%recap "a\|b\|c"]`, `[%vo id]` | Chapter title, pause, pacing, flip-book run, closing checklist, voiceover clip name |
