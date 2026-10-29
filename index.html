@@ -349,6 +349,7 @@
   #fStoryNote.err { color: var(--red); }
   .frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .film-panel .btn { justify-content: center; }
+  .flook .btn { flex: 1 1 0; min-width: 0; }
   #fPlay svg { fill: currentColor; }
   #fTime { font-size: 19px; margin-left: 4px; }
   #fScrub { width: 100%; accent-color: var(--ink); }
@@ -501,7 +502,7 @@
   <button class="btn sketch" id="bDiagram" aria-pressed="false" title="Diagram view: the board from above with inked symbols (D)"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg><span class="lbl">Diagram</span></button>
   <button class="btn sketch" id="bView" title="Reset camera (C)"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="lbl">View</span></button>
   <button class="btn sketch" id="bColour" aria-pressed="false" title="Colour: ink and wash on a wooden board (K)"><svg viewBox="0 0 24 24"><path d="M12 3c5 0 9 3.6 9 8 0 2.6-2 4-4.2 4H15a2 2 0 0 0-1.4 3.4c.6.7.2 2.6-1.6 2.6-5 0-9-4-9-9s4-9 9-9z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg><span class="lbl">Colour</span></button>
-  <button class="btn sketch" id="bWiggle" title="Toggle line wiggle"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
+  <button class="btn sketch" id="bWiggle" aria-pressed="true" title="Wiggle: redraw the pencil lines a few times a second (W)"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
   <button class="btn sketch" id="bBoard" aria-pressed="false" title="Storyboard: add captions, marks and camera views to this game, then open it as a film (S)"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 15h7M13 18.5h5"/></svg><span class="lbl">Storyboard</span></button>
   <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
   <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
@@ -587,6 +588,11 @@
     </div>
     <input type="range" id="fScrub" min="0" max="100" step="1" value="0" aria-label="Film position">
     <ol id="fBeats" class="fbeats" title="Click a beat to jump to it (← / → keys)"></ol>
+    <div class="frow flook" role="group" aria-label="Look">
+      <button class="btn sketch" id="fColour" aria-pressed="false" title="Colour: ink and wash on a wooden board (K)"><svg viewBox="0 0 24 24"><path d="M12 3c5 0 9 3.6 9 8 0 2.6-2 4-4.2 4H15a2 2 0 0 0-1.4 3.4c.6.7.2 2.6-1.6 2.6-5 0-9-4-9-9s4-9 9-9z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/></svg><span class="lbl">Colour</span></button>
+      <button class="btn sketch" id="fWiggle" aria-pressed="true" title="Wiggle: redraw the pencil lines a few times a second (W)"><svg viewBox="0 0 24 24"><path d="M2 12c2-4.5 4-4.5 6 0s4 4.5 6 0 4-4.5 6 0 2 2 2 2"/></svg><span class="lbl">Wiggle</span></button>
+    </div>
+    <div class="fnote">The look of the preview and the exported film.</div>
     <label id="fDrop" class="fdrop">Drop voiceover clips (or a .pgn) here, or click to choose clips<br><small>one per beat, named vo-01.mp3, vo-02.mp3 …</small>
       <input type="file" id="fVoInput" multiple accept="audio/*"></label>
     <div id="fVoStatus" class="fnote">No voiceover loaded: captions and sound effects only.</div>
@@ -2390,12 +2396,23 @@ function setColour(on) {
   buildTokenTextures();
   makeThumbs();
   document.documentElement.dataset.colour = on ? 'on' : 'off';
-  $('bColour').classList.toggle('on', on); $('bColour').setAttribute('aria-pressed', String(on));
+  for (const id of ['bColour', 'fColour']) { $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', String(on)); }
   try { localStorage.setItem('sketchChess.colour', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
   if (film.active) renderFilmFrame();
 }
-$('bColour').onclick = () => setColour(palette !== PALETTES.colour);
-$('bWiggle').onclick = () => { wiggle = !wiggle; $('bWiggle').classList.toggle('off', !wiggle); };
+// Line wiggle: the strokes redraw five times a second. Off holds them at their resting variant, wherever you are
+// in a film, so a paused preview and an export look the same as what you see now.
+function setWiggle(on) {
+  wiggle = on;
+  if (!on) wiggleTime = 0;
+  boilStep = -1;
+  for (const id of ['bWiggle', 'fWiggle']) { $(id).classList.toggle('off', !on); $(id).setAttribute('aria-pressed', String(on)); }
+  try { localStorage.setItem('sketchChess.wiggle', on ? '1' : '0'); } catch (e) { /* storage may be blocked */ }
+  if (film.active) { updateWorld(0, clock.t); renderFilmFrame(); }
+}
+// the toolbar's buttons and the film studio's copies of them do the same thing
+$('bColour').onclick = $('fColour').onclick = () => setColour(palette !== PALETTES.colour);
+$('bWiggle').onclick = $('fWiggle').onclick = () => setWiggle(!wiggle);
 $('bSound').onclick = () => { soundOn = !soundOn; $('bSound').classList.toggle('off', !soundOn); };
 $('overNew').onclick = newGame;
 $('overLook').onclick = () => hideModal(overEl);
@@ -2435,6 +2452,8 @@ addEventListener('keydown', (e) => {
       const i = clamp(film.beatIdx + (e.key === 'ArrowRight' ? 1 : (film.t - film.comp.beats[film.beatIdx].start > 1 ? 0 : -1)), 0, film.comp.beats.length - 1);
       seekFilm(film.comp.beats[i].start);
     }
+    else if (!mod && e.key.toLowerCase() === 'k') setColour(palette !== PALETTES.colour);
+    else if (!mod && e.key.toLowerCase() === 'w') setWiggle(!wiggle);
     return;
   }
   const typing = ['TEXTAREA', 'SELECT'].includes(e.target.tagName) || (e.target.tagName === 'INPUT' && e.target.type !== 'range');
@@ -2452,6 +2471,7 @@ addEventListener('keydown', (e) => {
   else if (!mod && e.key.toLowerCase() === 'c') $('bView').onclick();
   else if (!mod && e.key.toLowerCase() === 'd') setDiagram(!(sb.on ? diagram.mix > 0.5 : diagram.on));
   else if (!mod && e.key.toLowerCase() === 'k') setColour(palette !== PALETTES.colour);
+  else if (!mod && e.key.toLowerCase() === 'w') setWiggle(!wiggle);
   else if (!mod && e.key.toLowerCase() === 'e') setEvalBar(!evalBar.on);
   else if (!mod && e.key.toLowerCase() === 'n') setNotebook(!$('log').classList.contains('open'));
   else if (!mod && e.key.toLowerCase() === 'h') setZen(!document.body.classList.contains('zen'));
@@ -3746,7 +3766,7 @@ function seekFilm(t) {
   if (i < 0) i = beats.length - 1;
   const b = beats[i];
   rand = mulberry32(777 + i);
-  wiggleTime = b.start; boilStep = -1;
+  wiggleTime = wiggle ? b.start : 0; boilStep = -1;
   chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null; filmMode.lastClass = null; film.stamp = null;
   for (const o of pieces) { o.think = null; o.wob = 0; }
   clearGhosts(true); clearPuffs();
@@ -4059,7 +4079,7 @@ function exitFilm() {
   camera.clearViewOffset(); camera.fov = 36;
   lineMats.forEach((m, i) => { m.linewidth = filmSaved.lw[i]; });
   renderer.setPixelRatio(filmSaved.pr);
-  wiggleTime = filmSaved.wiggleTime;
+  wiggleTime = wiggle ? filmSaved.wiggleTime : 0;
   chess.reset();
   for (const m of filmSaved.moves) chess.move(m);
   redoStack = filmSaved.redo;
@@ -5361,9 +5381,13 @@ async function boot() {
   }
   resize();
   makeThumbs();
-  let colourPref = false;
-  try { colourPref = localStorage.getItem('sketchChess.colour') === '1'; } catch (e) { /* storage may be blocked */ }
+  let colourPref = false, wigglePref = true;
+  try {
+    colourPref = localStorage.getItem('sketchChess.colour') === '1';
+    wigglePref = localStorage.getItem('sketchChess.wiggle') !== '0';
+  } catch (e) { /* storage may be blocked */ }
   if (colourPref) setColour(true);
+  if (!wigglePref) setWiggle(false);
   updateUI();
   requestAnimationFrame(frame);
   $('loading').classList.add('done');
