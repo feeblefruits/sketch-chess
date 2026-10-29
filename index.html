@@ -2626,16 +2626,34 @@ function updateWorld(dt, now) {
 }
 
 // Check: the king flinches. Mate: it is knocked onto its side. Resign: it lays itself down, slower.
+// The foot is a disc on the board; rotating around its centre buries half of it, so we pivot on the rim
+// in the fall direction (the top of the piece arcs over, the contact edge stays on the paper).
 function kingAt(sq) { return pieces.find((p) => p.square === sq && p.type === 'k'); }
+const KING_FOOT = 0.40; // lathe foot 0.38 plus the lip, lumps and ink outline
+const fallAxis = new THREE.Vector3();
 function fallAim(kind, color, fromSq, kingSq) {
   let dx, dz;
   if (fromSq && kingSq && fromSq !== kingSq) {
     const a = sqToXZ(fromSq), k = sqToXZ(kingSq);
     dx = k.x - a.x; dz = k.z - a.z;
   } else { dx = 0; dz = color === 'w' ? 1 : -1; } // toward that side's own back rank
-  const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
-  const ang = kind === 'lay' ? 1.32 : 1.48;
-  return { rx: ang * dz, rz: -ang * dx, y: 0.14 };
+  const len = Math.hypot(dx, dz) || 1;
+  return { dx: dx / len, dz: dz / len, ang: kind === 'lay' ? 1.32 : 1.48 };
+}
+function fallAngleNow(f, now) {
+  const k = now < f.t0 ? 0 : f.dur <= 0 ? 1 : clamp((now - f.t0) / 1000 / f.dur, 0, 1);
+  return { k, ang: f.fromAng + (f.toAng - f.fromAng) * ease(k) };
+}
+function applyFallPose(o, ang, dx, dz) {
+  const s = Math.sin(ang), c = Math.cos(ang);
+  o.group.quaternion.setFromAxisAngle(fallAxis.set(dz, 0, -dx), ang);
+  o.group.position.set(o.rest.x + dx * KING_FOOT * (1 - c), o.rest.y + KING_FOOT * s, o.rest.z + dz * KING_FOOT * (1 - c));
+  o.lift = KING_FOOT * s;
+}
+function standKingUp(o) {
+  o.fall = null; o.lift = 0;
+  o.group.quaternion.identity(); o.group.rotation.set(0, 0, 0);
+  o.group.position.set(o.rest.x, o.rest.y, o.rest.z);
 }
 function setKingFlinch(o) {
   if (!o || !motionOn()) return;
@@ -2644,30 +2662,24 @@ function setKingFlinch(o) {
 }
 function setKingFall(o, kind, fromSq, { delay = 0, instant = false } = {}) {
   if (!o) return;
-  const tgt = fallAim(kind, o.color, fromSq, o.square);
+  const aim = fallAim(kind, o.color, fromSq, o.square);
+  const dx = o.fall ? o.fall.dx : aim.dx, dz = o.fall ? o.fall.dz : aim.dz;
+  const fromAng = o.fall ? fallAngleNow(o.fall, clock.now()).ang : 0;
   const dur = instant || !motionOn() ? 0 : kind === 'lay' ? 1.15 : 0.72;
   o.think = null; o.wob = 0;
-  o.fall = {
-    kind, t0: clock.now() + delay * 1000, dur,
-    fromRx: o.group.rotation.x, fromRz: o.group.rotation.z, fromY: o.lift,
-    toRx: tgt.rx, toRz: tgt.rz, toY: tgt.y, knocked: dur === 0,
-  };
-  if (dur === 0) { o.group.rotation.x = tgt.rx; o.group.rotation.z = tgt.rz; o.lift = tgt.y; }
+  o.fall = { kind, dx, dz, fromAng, toAng: aim.ang, t0: clock.now() + delay * 1000, dur, knocked: dur === 0 };
+  if (dur === 0) applyFallPose(o, aim.ang, dx, dz);
 }
 function clearKingPose(o) {
   if (!o) return;
   o.think = null; o.wob = 0;
   if (!o.fall || o.fall.kind === 'up') return;
   const dur = motionOn() ? 0.35 : 0;
-  o.fall = {
-    kind: 'up', t0: clock.now(), dur,
-    fromRx: o.group.rotation.x, fromRz: o.group.rotation.z, fromY: o.lift,
-    toRx: 0, toRz: 0, toY: 0, knocked: true,
-  };
-  if (dur === 0) { o.group.rotation.x = o.group.rotation.z = 0; o.lift = 0; o.fall = null; }
+  o.fall = { kind: 'up', dx: o.fall.dx, dz: o.fall.dz, fromAng: fallAngleNow(o.fall, clock.now()).ang, toAng: 0, t0: clock.now(), dur, knocked: true };
+  if (dur === 0) standKingUp(o);
 }
 function clearAllFalls() {
-  for (const o of pieces) { o.think = null; o.wob = 0; o.fall = null; o.group.rotation.x = o.group.rotation.z = 0; o.lift = 0; }
+  for (const o of pieces) { o.think = null; o.wob = 0; standKingUp(o); }
 }
 
 function stepPiece(o, dt, now, t) {
@@ -2713,19 +2725,14 @@ function stepPiece(o, dt, now, t) {
       if (o.square && !o.ghost) { sfx('place'); if (!pending) spawnPuff(p.x, p.z); }
     }
   } else if (o.fall) {
-    const f = o.fall;
-    let k = now < f.t0 ? 0 : f.dur <= 0 ? 1 : clamp((now - f.t0) / 1000 / f.dur, 0, 1);
-    const e = ease(k);
-    o.group.rotation.x = f.fromRx + (f.toRx - f.fromRx) * e;
-    o.group.rotation.z = f.fromRz + (f.toRz - f.fromRz) * e;
-    o.lift = f.fromY + (f.toY - f.fromY) * e;
-    p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
+    const f = o.fall, { k, ang } = fallAngleNow(f, now);
+    applyFallPose(o, ang, f.dx, f.dz);
     if (k >= 0.72 && !f.knocked && f.kind !== 'up') {
       f.knocked = true;
       if (!filmMode.active) sfx('place', f.kind === 'lay' ? 0.75 : 1.2);
       if (!o.ghost) spawnPuff(p.x, p.z);
     }
-    if (k >= 1 && f.kind === 'up') o.fall = null;
+    if (k >= 1 && f.kind === 'up') standKingUp(o);
     if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
   } else {
     p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
@@ -2742,7 +2749,7 @@ function stepPiece(o, dt, now, t) {
   if (!o.shadow) return;
   // hatched contact shadow, cast away from the light; shrinks as the piece rises
   const ground = (o.tween ? (o.tween.to.y <= TABLE_Y + 0.01 ? TABLE_Y : 0) : o.rest.y <= TABLE_Y + 0.01 ? TABLE_Y : 0);
-  const hgt = Math.max(0, p.y - ground);
+  const hgt = o.fall ? 0 : Math.max(0, p.y - ground);
   const L = U.uLight.value;
   o.shadow.position.set(p.x - L.x * (0.12 + hgt * 0.5), ground + 0.005, p.z - L.z * (0.12 + hgt * 0.5));
   const ss = o.shadowSize * o.scale * (1 + hgt * 0.35);
