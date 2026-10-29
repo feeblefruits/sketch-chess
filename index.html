@@ -72,6 +72,11 @@
   #banner svg { position: absolute; left: 10%; bottom: 2px; width: 80%; height: 12px; overflow: visible; }
   #banner svg path { stroke-dasharray: 400; stroke-dashoffset: 400; }
   #banner.show svg path { animation: draw .6s .15s ease-out forwards; }
+  @media (prefers-reduced-motion: reduce) {
+    #banner { transition: opacity .15s; }
+    #banner.show { transform: translate(-50%, 0); }
+    #banner.show svg path { animation: none; stroke-dashoffset: 0; }
+  }
   @keyframes draw { to { stroke-dashoffset: 0; } }
 
   #toolbar {
@@ -506,6 +511,7 @@
   <button class="btn sketch" id="bBoard" aria-pressed="false" title="Storyboard: add captions, marks and camera views to this game, then open it as a film (S)"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 15h7M13 18.5h5"/></svg><span class="lbl">Storyboard</span></button>
   <button class="btn sketch" id="bFilm" title="Film studio: watch and record a story"><svg viewBox="0 0 24 24"><path d="M3 10h18v10H3zM3 10l1.5-5.5L20 4l1 6M8.5 4.2 7 10M14.5 4 13 10"/></svg><span class="lbl">Film</span></button>
   <button class="btn sketch" id="bSound" title="Toggle sound"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 9c1.4 1.6 1.4 4.4 0 6M19.5 6c3 3.2 3 8.8 0 12"/></svg><span class="lbl">Sound</span></button>
+  <button class="btn sketch" id="bResign" title="Resign: lay your king down and end the game (R)"><svg viewBox="0 0 24 24"><path d="M6 21V4m0 0h10.5l-3 3.5 3 3.5H6"/></svg><span class="lbl">Resign</span></button>
   </div></div>
   <div class="tb-main">
   <button class="btn sketch" id="bNew" title="New game"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20.5 3.5v5h-5"/></svg><span class="lbl">New game</span></button>
@@ -695,7 +701,7 @@
 
 { [%title "King and rook together"] [%cam orbit f5 f6 h6 e4]
   Black's rook finally gets active, but the white king marches up the board. 58.Rf6 blocks the check, and Black's kingside pawns can't be held. Vidmar resigns. }
-54... Rh7 55. Re5 Kc6 56. Re6+ Kb5 57. Kf5 Rf7+ 58. Rf6 { [%csl Rh6,Rg5] }
+54... Rh7 55. Re5 Kc6 56. Re6+ Kb5 57. Kf5 Rf7+ 58. Rf6 { [%csl Rh6,Rg5] [%resign] }
 
 { [%cam frame b4 f5 f7 h6 a6 b5 g3] [%recap "Trade queens|Fix the weak pawns|Activate the king|Break through with e4|Switch the rook"]
   1–0. A model of Flohr’s endgame technique. [%hold 2.5] }
@@ -1696,7 +1702,7 @@ function makePiece(type, color) {
     type, color, square: null, group: new THREE.Group(),
     mat: pieceMaterial(color, (pieceSeed++) * 3.7), twist: (Math.random() - 0.5) * 0.25,
     lift: 0, glow: 0, tween: null, squash: 0, pop: 0, baseScale: 1, scale: 1,
-    rest: new THREE.Vector3(), dragging: false, needsRebuild: false,
+    rest: new THREE.Vector3(), dragging: false, needsRebuild: false, think: null, wob: 0, fall: null,
   };
   buildPieceMeshes(o);
   o.shadow = new THREE.Mesh(shadowGeo, new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.5 }));
@@ -1821,6 +1827,9 @@ function updateDiagram(dt) {
  * ------------------------------------------------------------------ */
 const chess = new Chess();
 let redoStack = [];
+let resigned = null; // 'w' | 'b' — the side that laid their king down; chess.js still thinks the game is on
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const motionOn = () => !reduceMotion.matches;
 
 function sync({ instant = false } = {}) {
   const target = [];
@@ -2025,6 +2034,11 @@ function commit(m) {
 
 function undo() {
   if (pending) return;
+  if (resigned) {
+    resigned = null; lastFlinchFen = ''; overShownFor = null;
+    deselect(); sync(); updateUI(); hideModal(overEl);
+    return;
+  }
   const m = chess.undo();
   if (!m) return;
   redoStack.push({ from: m.from, to: m.to, promotion: m.promotion });
@@ -2042,8 +2056,16 @@ function newGame() {
   if (sb.notes.size && !confirm('Start a new game? Your storyboard captions and marks will be cleared.')) return;
   sb.notes.clear(); sb.dirty = false;
   if (pending) cancelPromotion();
-  chess.reset(); redoStack = []; overShownFor = null;
-  deselect(); sync(); updateUI(); hideModal(overEl);
+  chess.reset(); redoStack = []; overShownFor = null; resigned = null; lastFlinchFen = '';
+  deselect(); sync({ instant: true }); clearAllFalls(); updateUI(); hideModal(overEl);
+}
+function resign() {
+  if (pending || film.active || gameOver()) return;
+  const side = chess.turn() === 'w' ? 'White' : 'Black';
+  if (!confirm(`${side} resigns? The king lays down, and the game ends.`)) return;
+  resigned = chess.turn();
+  deselect();
+  updateUI();
 }
 
 /* ------------------------------------------------------------------ *
@@ -2051,7 +2073,27 @@ function newGame() {
  * ------------------------------------------------------------------ */
 const $ = (id) => document.getElementById(id);
 const overEl = $('over'), promoEl = $('promo');
-let overShownFor = null, bannerTimer = 0;
+let overShownFor = null, bannerTimer = 0, lastFlinchFen = '';
+
+function reactToPosition() {
+  if (filmMode.active) return;
+  const down = resigned || (chess.isCheckmate() ? chess.turn() : null);
+  const last = chess.history({ verbose: true }).at(-1);
+  const delay = (() => {
+    if (!down || !motionOn()) return 0;
+    const mover = last && pieces.find((p) => p.tween && p.square === last.to);
+    return mover ? mover.tween.dur * 0.85 : 0;
+  })();
+  for (const o of pieces) if (o.type === 'k') {
+    if (down && o.color === down) {
+      const kind = resigned ? 'lay' : 'topple';
+      if (!o.fall || o.fall.kind !== kind) setKingFall(o, kind, last && last.to, { delay });
+    } else if (o.fall && o.fall.kind !== 'up') clearKingPose(o);
+  }
+  const fen = chess.fen();
+  if (!down && chess.inCheck() && fen !== lastFlinchFen) setKingFlinch(kingAt(kingSquare(chess, chess.turn())) || pieces.find((p) => p.square && p.type === 'k' && p.color === chess.turn()));
+  lastFlinchFen = (!down && chess.inCheck()) ? fen : '';
+}
 
 function showBanner(text, sub = '', cls = '') {
   const b = $('banner');
@@ -2063,15 +2105,21 @@ function hideBanner() { $('banner').classList.remove('show'); }
 
 function updateUI() {
   const turn = chess.turn();
-  $('turnText').textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+  $('turnText').textContent = resigned ? ((resigned === 'w' ? 'White' : 'Black') + ' resigned')
+    : chess.isCheckmate() ? ((turn === 'w' ? 'Black' : 'White') + ' wins')
+    : chess.isDraw() ? 'Draw' : ((turn === 'w' ? 'White' : 'Black') + ' to move');
   $('turnSwatch').setAttribute('fill', turn === 'w' ? '#fbf9f3' : 'url(#hatch)');
   $('moveNo').textContent = 'Move ' + chess.moveNumber();
-  $('bUndo').disabled = chess.history().length === 0;
+  $('bUndo').disabled = chess.history().length === 0 && !resigned;
   $('bRedo').disabled = redoStack.length === 0;
 
   const winner = turn === 'w' ? 'Black' : 'White';
   let title = '', sub = '';
-  if (chess.isCheckmate()) { title = 'Checkmate!'; sub = `${winner} wins`; showBanner(title, sub, 'check'); }
+  if (resigned) {
+    const loser = resigned === 'w' ? 'White' : 'Black';
+    title = `${loser} resigns`; sub = `${resigned === 'w' ? 'Black' : 'White'} wins`;
+    showBanner(title, sub);
+  } else if (chess.isCheckmate()) { title = 'Checkmate!'; sub = `${winner} wins`; showBanner(title, sub, 'check'); }
   else if (chess.isDraw()) {
     title = 'Draw';
     sub = chess.isStalemate() ? 'stalemate — no legal moves' : chess.isThreefoldRepetition() ? 'threefold repetition'
@@ -2081,12 +2129,18 @@ function updateUI() {
     showBanner('Check!', `${turn === 'w' ? 'White' : 'Black'} king is under attack`, 'check');
   } else hideBanner();
 
-  if (chess.isGameOver() && overShownFor !== chess.fen()) {
-    overShownFor = chess.fen();
+  const overKey = resigned ? 'resign:' + resigned : chess.isGameOver() ? chess.fen() : null;
+  if (overKey && overShownFor !== overKey) {
+    overShownFor = overKey;
     $('overTitle').textContent = title;
-    $('overSub').textContent = title === 'Draw' ? `It's a draw by ${sub}.` : `${sub} after ${chess.moveNumber() - (turn === 'w' ? 1 : 0)} moves.`;
-    setTimeout(() => showModal(overEl), 900);
+    const n = chess.history().length;
+    $('overSub').textContent = title === 'Draw' ? `It's a draw by ${sub}.`
+      : n ? `${sub} after ${chess.moveNumber() - (turn === 'w' ? 1 : 0)} moves.` : `${sub}.`;
+    const wait = motionOn() ? (resigned ? 1400 : 900) : 200;
+    setTimeout(() => { if (overShownFor === overKey) showModal(overEl); }, wait);
   }
+  $('bResign').disabled = gameOver();
+  reactToPosition();
   renderLog();
   refreshMarkers();
   if (sb.on) { renderStoryboard(); sbShowFilmCamera(); renderSbCam(); }
@@ -2250,7 +2304,7 @@ function pickSquare() {
   if (selected) { const t = sqs.find((s) => targets.some((m) => m.to === s)); if (t) return t; }
   return sqs[0] || null;
 }
-const gameOver = () => chess.isGameOver();
+const gameOver = () => chess.isGameOver() || !!resigned;
 
 function onPointerDown(e) {
   activePointers.add(e.pointerId);
@@ -2414,6 +2468,7 @@ function setWiggle(on) {
 $('bColour').onclick = $('fColour').onclick = () => setColour(palette !== PALETTES.colour);
 $('bWiggle').onclick = $('fWiggle').onclick = () => setWiggle(!wiggle);
 $('bSound').onclick = () => { soundOn = !soundOn; $('bSound').classList.toggle('off', !soundOn); };
+$('bResign').onclick = resign;
 $('overNew').onclick = newGame;
 $('overLook').onclick = () => hideModal(overEl);
 // the moves notebook: the cover flips up over the spiral and the page unfolds below it (and back)
@@ -2476,6 +2531,7 @@ addEventListener('keydown', (e) => {
   else if (!mod && e.key.toLowerCase() === 'n') setNotebook(!$('log').classList.contains('open'));
   else if (!mod && e.key.toLowerCase() === 'h') setZen(!document.body.classList.contains('zen'));
   else if (!mod && e.key.toLowerCase() === 'l') setLabels(labels.mode === 'off' ? 'highlights' : 'off');
+  else if (!mod && e.key.toLowerCase() === 'r') resign();
 });
 
 /* ------------------------------------------------------------------ *
@@ -2569,13 +2625,60 @@ function updateWorld(dt, now) {
   }
 }
 
+// Check: the king flinches. Mate: it is knocked onto its side. Resign: it lays itself down, slower.
+function kingAt(sq) { return pieces.find((p) => p.square === sq && p.type === 'k'); }
+function fallAim(kind, color, fromSq, kingSq) {
+  let dx, dz;
+  if (fromSq && kingSq && fromSq !== kingSq) {
+    const a = sqToXZ(fromSq), k = sqToXZ(kingSq);
+    dx = k.x - a.x; dz = k.z - a.z;
+  } else { dx = 0; dz = color === 'w' ? 1 : -1; } // toward that side's own back rank
+  const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
+  const ang = kind === 'lay' ? 1.32 : 1.48;
+  return { rx: ang * dz, rz: -ang * dx, y: 0.14 };
+}
+function setKingFlinch(o) {
+  if (!o || !motionOn()) return;
+  o.think = { t0: clock.now(), dur: 0.55 };
+  if (!filmMode.active) sfx('pick', 0.9);
+}
+function setKingFall(o, kind, fromSq, { delay = 0, instant = false } = {}) {
+  if (!o) return;
+  const tgt = fallAim(kind, o.color, fromSq, o.square);
+  const dur = instant || !motionOn() ? 0 : kind === 'lay' ? 1.15 : 0.72;
+  o.think = null; o.wob = 0;
+  o.fall = {
+    kind, t0: clock.now() + delay * 1000, dur,
+    fromRx: o.group.rotation.x, fromRz: o.group.rotation.z, fromY: o.lift,
+    toRx: tgt.rx, toRz: tgt.rz, toY: tgt.y, knocked: dur === 0,
+  };
+  if (dur === 0) { o.group.rotation.x = tgt.rx; o.group.rotation.z = tgt.rz; o.lift = tgt.y; }
+}
+function clearKingPose(o) {
+  if (!o) return;
+  o.think = null; o.wob = 0;
+  if (!o.fall || o.fall.kind === 'up') return;
+  const dur = motionOn() ? 0.35 : 0;
+  o.fall = {
+    kind: 'up', t0: clock.now(), dur,
+    fromRx: o.group.rotation.x, fromRz: o.group.rotation.z, fromY: o.lift,
+    toRx: 0, toRz: 0, toY: 0, knocked: true,
+  };
+  if (dur === 0) { o.group.rotation.x = o.group.rotation.z = 0; o.lift = 0; o.fall = null; }
+}
+function clearAllFalls() {
+  for (const o of pieces) { o.think = null; o.wob = 0; o.fall = null; o.group.rotation.x = o.group.rotation.z = 0; o.lift = 0; }
+}
+
 function stepPiece(o, dt, now, t) {
   let liftTarget, glowTarget;
-  if (filmMode.active) {
-    // a film can make a piece "hesitate" (lift and wobble) before it moves
-    const th = o.think;
-    let env = 0;
-    if (th) { const k = (now - th.t0) / 1000 / th.dur; env = k > 0 && k < 1 ? Math.sin(k * Math.PI) : 0; if (k >= 1) o.think = null; }
+  const th = o.think;
+  let env = 0;
+  if (th) { const k = (now - th.t0) / 1000 / th.dur; env = k > 0 && k < 1 ? Math.sin(k * Math.PI) : 0; if (k >= 1) o.think = null; }
+  if (o.fall) {
+    liftTarget = o.lift; glowTarget = 0;
+  } else if (filmMode.active || env) {
+    // a film can make a piece "hesitate" (lift and wobble) before it moves; check does the same
     o.wob = env; liftTarget = env * 0.24; glowTarget = env;
   } else {
     const sel = o.square && o.square === selected && !o.tween;
@@ -2609,6 +2712,21 @@ function stepPiece(o, dt, now, t) {
       o.squash = 1;
       if (o.square && !o.ghost) { sfx('place'); if (!pending) spawnPuff(p.x, p.z); }
     }
+  } else if (o.fall) {
+    const f = o.fall;
+    let k = now < f.t0 ? 0 : f.dur <= 0 ? 1 : clamp((now - f.t0) / 1000 / f.dur, 0, 1);
+    const e = ease(k);
+    o.group.rotation.x = f.fromRx + (f.toRx - f.fromRx) * e;
+    o.group.rotation.z = f.fromRz + (f.toRz - f.fromRz) * e;
+    o.lift = f.fromY + (f.toY - f.fromY) * e;
+    p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
+    if (k >= 0.72 && !f.knocked && f.kind !== 'up') {
+      f.knocked = true;
+      if (!filmMode.active) sfx('place', f.kind === 'lay' ? 0.75 : 1.2);
+      if (!o.ghost) spawnPuff(p.x, p.z);
+    }
+    if (k >= 1 && f.kind === 'up') o.fall = null;
+    if (o.needsRebuild) { o.needsRebuild = false; buildPieceMeshes(o); o.pop = 1; }
   } else {
     p.set(o.rest.x, o.rest.y + o.lift, o.rest.z);
     o.group.rotation.x *= 0.8;
@@ -2967,7 +3085,14 @@ function compileStory(story, vo = {}) {
       const opens = n.text || n.tags.some((t) => t.k === 'title');
       if (opens) openBeat(n.text, n.tags, { start: n.start, end: n.end });
       else if (!beat) openBeat('', []);
-      beat.items.push({ kind: 'cue', tags: n.tags.filter((t) => !['title', 'timelapse', 'speed', 'vo', 'preview', 'steady'].includes(t.k) || !opens), start: n.start, end: n.end });
+      const cue = { kind: 'cue', tags: n.tags.filter((t) => !['title', 'timelapse', 'speed', 'vo', 'preview', 'steady'].includes(t.k) || !opens), start: n.start, end: n.end };
+      const rt = n.tags.find((t) => t.k === 'resign');
+      if (rt) {
+        const a = (rt.args || '').trim().toLowerCase();
+        cue.resign = a === 'w' || a === 'b' ? a : g.turn();
+        cue.resignSq = kingSquare(g, cue.resign);
+      }
+      beat.items.push(cue);
     } else {
       if (!beat) openBeat('', []);
       if (beat.firstMoveStart == null) beat.firstMoveStart = n.start;
@@ -2979,7 +3104,7 @@ function compileStory(story, vo = {}) {
       ply++; fens.push(g.fen());
       const ticker = tickerText(before, mv.san, n.nag);
       beat.lastTicker = ticker;
-      mainMoves.push(beat.items[beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
+      mainMoves.push(beat.items[beat.items.push({ kind: 'move', mv, nag: n.nag, before, ticker, check: g.inCheck(), mate: g.isCheckmate(), kingSq: g.inCheck() ? kingSquare(g, g.turn()) : null,
         vars: n.vars.map((v) => ({ moves: lineOf(before, v) })), start: n.start, end: n.end, ply, fenAfter: g.fen() }) - 1]);
     }
   }
@@ -3050,6 +3175,10 @@ function compileStory(story, vo = {}) {
           } else if (tag.k === 'hold') t += parseFloat(args) || 1;
           else if (tag.k === 'think') {
             const sq = args.trim(); A.push({ t, type: 'think', sq, dur: 1.1 }); t += 1.1;
+          } else if (tag.k === 'resign') {
+            A.push({ t: mt, type: 'fall', kind: 'lay', sq: it.resignSq, color: it.resign });
+            A.push({ t: mt + 0.83, type: 'sfx', kind: 'place' });
+            t = Math.max(t, mt + 1.2);
           } else if (tag.k === 'clear') A.push({ t: mt, type: 'clear', squares: args.split(/[\s,]+/).filter((x) => SQ_RE.test(x)) });
           else if (tag.k === 'recap') {
             const list = quoted(args).split('|').map((x) => x.trim()).filter(Boolean);
@@ -3091,6 +3220,14 @@ function compileStory(story, vo = {}) {
         A.push({ t: t + moveDur + 0.05, type: 'stamp', kind: it.cls, sq: mv.to, big });
         if (big) slot += 1.0;
       }
+      if (it.mate && !b.timelapse) {
+        A.push({ t: t + moveDur + 0.12, type: 'fall', kind: 'topple', sq: it.kingSq, from: mv.to });
+        A.push({ t: t + moveDur + 0.64, type: 'sfx', kind: 'place' });
+        slot += 0.85;
+      } else if (it.check && !b.timelapse) {
+        A.push({ t: t + moveDur + 0.08, type: 'flinch', sq: it.kingSq });
+        A.push({ t: t + moveDur + 0.08, type: 'sfx', kind: 'pick' });
+      }
       landT = t + moveDur + 0.15;
       A.push({ t: t + moveDur, type: 'sfx', kind: 'place' });
       if (mv.captured) A.push({ t: t + moveDur * 0.55, type: 'sfx', kind: 'capture' });
@@ -3111,6 +3248,24 @@ function compileStory(story, vo = {}) {
   }
   const highlights = [];
   for (const b of beats) for (const a of b.actions) if (a.type === 'stamp' && WAVE_DOTS.has(a.kind)) highlights.push({ t: b.start + a.t, kind: a.kind });
+  // a decisive result without mate is a resignation: lay that king down on the last beat if the story didn't already
+  const res = story.headers.Result, hasFall = beats.some((b) => b.actions.some((a) => a.type === 'fall'));
+  if (!hasFall && (res === '1-0' || res === '0-1') && !g.isCheckmate()) {
+    const loser = res === '1-0' ? 'b' : 'w', sq = kingSquare(g, loser), b = beats[beats.length - 1];
+    if (sq && b) {
+      const t = Math.min(0.5, Math.max(0, b.dur - 1.4));
+      b.actions.push({ t, type: 'fall', kind: 'lay', sq, color: loser });
+      b.actions.push({ t: t + 0.83, type: 'sfx', kind: 'place' });
+      b.actions.sort((a, c) => a.t - c.t);
+    }
+  }
+  // once a king is down, later beats keep it down (seeking into the recap shouldn't stand it up)
+  let fallen = null;
+  for (const b of beats) {
+    const own = b.actions.find((a) => a.type === 'fall');
+    if (fallen && !own) b.actions.unshift({ t: 0, type: 'fall', kind: fallen.kind, sq: fallen.sq, color: fallen.color, from: fallen.from, hold: true });
+    if (own) fallen = own;
+  }
   return { headers: story.headers, highlights, beats, duration: start, plies: ply, finalFen: g.fen(), fens, freeMoves, evalPts: evalTimeline(beats, evals, ply, start) };
 }
 
@@ -3687,6 +3842,12 @@ function applyAction(a, b, live) {
     case 'annot': addAnnot(a.item, nowS); break;
     case 'label': film.labels.push({ sq: a.sq, text: a.text, above: a.above, t0: nowS, tOut: null, seed: 500 + film.labels.length }); break;
     case 'think': { const o = pieces.find((p) => p.square === a.sq); if (o) o.think = { t0: nowMs, dur: a.dur }; break; }
+    case 'flinch': { const o = kingAt(a.sq) || pieces.find((p) => p.square === a.sq); if (o) setKingFlinch(o); break; }
+    case 'fall': {
+      const o = kingAt(a.sq) || pieces.find((p) => p.type === 'k' && p.color === a.color);
+      if (o) setKingFall(o, a.kind || 'topple', a.from, { instant: !!a.hold });
+      break;
+    }
     case 'clear': { // all marks, or only the ones touching the given squares
       const hit = (sq) => !a.squares.length || a.squares.includes(sq);
       clearAnnots(nowS, (x) => [x.sq, x.from, x.to].some((sq) => sq && hit(sq)));
@@ -3768,7 +3929,7 @@ function seekFilm(t) {
   rand = mulberry32(777 + i);
   wiggleTime = wiggle ? b.start : 0; boilStep = -1;
   chess.load(b.fen, { skipValidation: true }); filmMode.lastMove = null; filmMode.lastClass = null; film.stamp = null;
-  for (const o of pieces) { o.think = null; o.wob = 0; }
+  clearAllFalls();
   clearGhosts(true); clearPuffs();
   sync({ instant: true });
   refreshMarkers();
@@ -3974,11 +4135,15 @@ function newStoryText(n) {
   for (const m of (filmSaved && filmSaved.moves) || []) { try { sans.push(g.move(m).san); } catch (e) { break; } }
   const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   const name = n > 1 ? `My film ${n}` : 'My film', file = n > 1 ? `my-film-${n}` : 'my-film';
-  const result = g.isCheckmate() ? (g.turn() === 'w' ? '0-1' : '1-0') : g.isDraw() ? '1/2-1/2' : '*';
+  const result = (filmSaved && filmSaved.resigned) ? (filmSaved.resigned === 'w' ? '0-1' : '1-0')
+    : g.isCheckmate() ? (g.turn() === 'w' ? '0-1' : '1-0') : g.isDraw() ? '1/2-1/2' : '*';
   const head = `[Event "${name}"]\n[Date "${date}"]\n[White "White"]\n[Black "Black"]\n[Result "${result}"]\n[FilmHeader "${name}"]\n[FilmFile "${file}"]\n\n`;
+  const closer = filmSaved && filmSaved.resigned
+    ? `{ [%cam overview] [%resign]\n  ${filmSaved.resigned === 'w' ? 'White' : 'Black'} resigns. }\n${result}\n`
+    : `{ [%cam overview]\n  Sum up the game here. Split the game into more beats by adding comments with captions between the moves. }\n${result}\n`;
   if (sans.length) return head +
     `{ [%title "${name}"] [%cam overview]\n  Introduce the game here: who is playing, and what to watch for. }\n` +
-    `${pgnMoves(sans)}\n\n{ [%cam overview]\n  Sum up the game here. Split the game into more beats by adding comments with captions between the moves. }\n${result}\n`;
+    `${pgnMoves(sans)}\n\n${closer}`;
   return head +
     `{ [%title "${name}"] [%cam overview]\n  Every comment with text starts a new beat: a caption card and one narration line. Replace this one with your introduction. }\n` +
     `1. e4 e5 2. Nf3 Nc6\n\n` +
@@ -4045,7 +4210,7 @@ function enterFilm() {
   filmSaved = {
     moves: chess.history({ verbose: true }).map((m) => ({ from: m.from, to: m.to, promotion: m.promotion })),
     redo: redoStack.slice(), camPos: camera.position.clone(), target: controls.target.clone(), userMoved: userMovedCamera,
-    lw: lineMats.map((m) => m.linewidth), pr: renderer.getPixelRatio(), wiggleTime,
+    lw: lineMats.map((m) => m.linewidth), pr: renderer.getPixelRatio(), wiggleTime, resigned,
   };
   film.active = true; filmMode.active = true; filmMode.liveSfx = false; clock.virtual = true;
   controls.enabled = false;
@@ -4073,7 +4238,7 @@ function exitFilm() {
   film.active = false; filmMode.active = false; filmMode.liveSfx = true; clock.virtual = false;
   clearGhosts(true); clearPuffs(); annots = []; annotDirty = true; updateAnnots(0); annotMesh.visible = false;
   film.labels = []; film.recap = null;
-  for (const o of pieces) { o.think = null; o.wob = 0; }
+  clearAllFalls();
   document.body.classList.remove('filming');
   $('film').setAttribute('aria-hidden', 'true');
   camera.clearViewOffset(); camera.fov = 36;
@@ -4083,6 +4248,8 @@ function exitFilm() {
   chess.reset();
   for (const m of filmSaved.moves) chess.move(m);
   redoStack = filmSaved.redo;
+  resigned = filmSaved.resigned;
+  lastFlinchFen = '';
   sync({ instant: true });
   userMovedCamera = filmSaved.userMoved;
   resize();
@@ -4967,7 +5134,7 @@ function sbComment(n) {
 }
 function storyboardPGN() {
   const { sans, end } = fullLine();
-  const result = end.isCheckmate() ? (end.turn() === 'w' ? '0-1' : '1-0') : end.isDraw() ? '1/2-1/2' : '*';
+  const result = resigned ? (resigned === 'w' ? '0-1' : '1-0') : end.isCheckmate() ? (end.turn() === 'w' ? '0-1' : '1-0') : end.isDraw() ? '1/2-1/2' : '*';
   const d = new Date(), date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
   const first = sb.notes.get(0), name = (first && sbClean(first.title)) || 'My storyboard';
   const evals = liveEvalsHeader(), evals2 = liveEvalsHeader('second');
@@ -4986,6 +5153,11 @@ function storyboardPGN() {
     }
     if (line.length > 72) { out += line + '\n'; line = ''; }
   });
+  if (resigned) {
+    const who = resigned === 'w' ? 'White' : 'Black';
+    const c = `{ [%resign]\n  ${who} resigns. }`;
+    if (line) { out += line + '\n\n' + c + '\n'; line = ''; } else out += c + '\n';
+  }
   return out + (line ? line + ' ' : '') + result + '\n';
 }
 function sbOpenFilm() {

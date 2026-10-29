@@ -13,7 +13,8 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 - **Colour** — switch between the pencil look and ink-and-wash colour: a green and cream board in a wooden frame, ivory and charcoal pieces, parchment page. Applies to the game, films and exports, and is remembered between visits. The toolbar's Colour button and the film studio's own pair of Colour and Wiggle buttons do the same thing, so you can set the look without leaving a story.
 - **Diagram view** — look straight down at the board with the 3D pieces swapped for hand-inked diagram symbols (they crossfade). The symbols stay upright as you turn the board.
 - **Move labels and evaluation bar** — the **Eval**, **Labels** and **All** buttons in the moves panel. While you play, Stockfish checks every position in the background (it loads from jsDelivr when first needed). **Eval** shows an evaluation bar beside the board (E). **Labels** (L) marks moves the way chess sites do, by how much of the player's winning chances a move gives away: by default only brilliant **!!** (a sacrifice that is still one of the best moves) and blunder **??** (more than 20% thrown away); with **All**, also great **!** (the only good move), best **★**, excellent and good **✓**, inaccuracy **?!**, mistake **?** and miss **✗** (the opponent's mistake not punished). Labels show in the moves list, the storyboard and as a pencil ring on the board, and a note pops up when one is played (or replayed after an undo). Undo a blunder, mistake or miss and a dashed blue arrow shows the engine's move instead. A quick engine scores positions slightly better for the side to move; that wobble is measured over the game and taken out before moves are judged.
-- **UI** — turn indicator, check/mate/draw banners, undo/redo, synthesized pencil sound effects. The moves are kept in a small spiral notebook in the corner: its cover shows how many moves have been played (and a tab for the latest labelled move), and flips up over the spiral to open a ruled page with the moves, ten to a page, with a dog-eared corner to turn pages. The toolbar holds New game, Undo and Redo; the round ⋯ button grows it upwards into a drawer with everything else (flip, diagram, view, colour, wiggle, storyboard, film, sound), which stays open until you close it.
+- **UI** — turn indicator, check/mate/draw banners, undo/redo, synthesized pencil sound effects. The moves are kept in a small spiral notebook in the corner: its cover shows how many moves have been played (and a tab for the latest labelled move), and flips up over the spiral to open a ruled page with the moves, ten to a page, with a dog-eared corner to turn pages. The toolbar holds New game, Undo and Redo; the round ⋯ button grows it upwards into a drawer with everything else (flip, diagram, view, colour, wiggle, storyboard, film, sound, resign), which stays open until you close it.
+- **Check, mate and resign** — the king flinches when it is checked, topples onto its side on checkmate (knocked away from the mating piece, with a puff of graphite), and **Resign** (R) in the drawer lays it down more slowly after a confirm. Undo stands it back up. The same motions play in films and exports. If the system asks for reduced motion, the king snaps to the end pose with no tween.
 
 ## Controls
 
@@ -31,6 +32,7 @@ Open `index.html` in a modern browser (needs an internet connection for the CDN 
 | Moves notebook open / closed | N |
 | Toolbar drawer open / closed | M |
 | Hide / show everything but the board (also the eye in the bottom-right corner) | H |
+| Resign | R |
 | Storyboard on / off | S |
 | Storyboard: previous / next move | ← / → |
 | Storyboard: delete the move just played (and any after it) | Delete / Backspace |
@@ -81,6 +83,7 @@ A story is a PGN file (optionally with `[Evals "0.20,0.35,#-3,…"]`, one engine
 | `[%label d5 "isolated"]` | Handwritten label pinned to a square (add `above` to write it straight over the piece, e.g. `[%label e1 "K" above]`) |
 | `[%clear]` / `[%clear c4,f7]` | Take down all the marks (or the ones on those squares) as the move before it lands |
 | `[%think c1]` | The piece hesitates (lifts and wobbles) before the next move |
+| `[%resign]` / `[%resign b]` | The side to move (or the named side) lays their king down. A story that ends 1-0 or 0-1 without mate does this on the last beat by itself |
 | `( variation )` | Played as a see-through "ghost" line, then crossed out (or ticked with `!`) and rewound |
 | `!` after a move | Slow motion |
 | `!!` `!` `?!` `?` `??` after a move | Sets the move's label (brilliant, great, inaccuracy, mistake, blunder) whatever the engine says |
